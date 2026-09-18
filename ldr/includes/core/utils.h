@@ -1,6 +1,15 @@
 #pragma once
 #include <windows.h>
 
+
+static inline PPEB GetPeb() {
+#if defined(_WIN64) || defined(__x86_64__)
+    return (PPEB)__readgsqword(0x60);
+#elif defined(_M_IX86)|| defined(__i386__)
+    return (PPEB)__readfsdword(0x30);
+#endif
+}
+
 static inline char *LdrStrchr(const char *str, int c) {
     volatile char *s = (volatile char *)str;
     char ch = (char)c;

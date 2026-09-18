@@ -16,10 +16,10 @@ x64: clean
 	@ echo "[*] Compiling test DLL..."
 	@ $(CCX64) -shared -nostdlib -e DllMain file.c -o file.dll -luser32 -lkernel32
 	@ echo "[*] Running nasm..."
-	@ nasm -f win64 rLdr/core/assembly/asmx64.asm -o asm.x64.o
-	@ nasm -f win64 rLdr/core/assembly/syscalls.x64.asm -o syscalls.x64.o
+	@ nasm -f win64 core/assembly/asmx64.asm -o asm.x64.o
+	@ nasm -f win64 core/assembly/syscalls.x64.asm -o syscalls.x64.o
 	@ echo "[*] Compiling loader..."
-	@ $(CCX64) rLdr/core/*.c asm.x64.o syscalls.x64.o -o $(OUTPUT_X64) $(CFLAGS) $(LDFLAGS) -IrLdr/includes
+	@ $(CCX64) core/*.c asm.x64.o syscalls.x64.o -o $(OUTPUT_X64) $(CFLAGS) $(LDFLAGS) -Iincludes
 	@ echo "[*] Extracting .text section..."
 	@ x86_64-w64-mingw32-objcopy -O binary -j .text $(OUTPUT_X64) loader.bin
 	@ echo "[*] Prepending loader to DLL..."

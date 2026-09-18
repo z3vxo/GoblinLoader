@@ -2,11 +2,21 @@
 #include <windows.h>
 
 
-typedef struct Parser Parser;
+typedef struct ParserRead ParserRead;
+typedef struct ParserWrite ParserWrite;
 
-Parser *ParserInit(PBYTE buf, SIZE_T length);
-UINT32 ParserRead4(Parser *p);
-INT ParserReadStringInto(Parser *p, char *dst, SIZE_T bufSize);
-char *ParserReadString(Parser *p);
+ParserRead *ParserInitRead(PBYTE buf, SIZE_T length);
+UINT32 ParserRead4(ParserRead *p);
+INT ParserReadStringInto(ParserRead *p, char *dst, SIZE_T bufSize);
+char *ParserReadString(ParserRead *p);
 void ParserFreeString(char *s);
-void ParserClear(Parser *p);
+PBYTE ParserReturnDataPointer();
+void ParserClearRead(ParserRead *p);
+
+
+ParserWrite *ParserInitWrite();
+BOOL ParserWrite4(ParserWrite *p, DWORD Data);
+INT ParserWriteBytes(ParserWrite *p, PBYTE Data, SIZE_T len);
+PBYTE ParserWriteReturnPointer(ParserWrite *p);
+SIZE_T ParserWriteReturnSize(ParserWrite *p);
+void ParserClearWrite(ParserWrite *p);

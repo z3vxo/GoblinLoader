@@ -5,8 +5,22 @@
 #include "utils.h"
 
 
+#ifdef DEBUG
+#define DBGA(msg) do { \
+    DWORD _w; \
+    WriteFile( \
+    GetStdHandle(STD_OUTPUT_HANDLE), \
+    msg, LdrStrlen(msg), &_w, NULL); \
+} while(0)
+#else
+#define DBGA(msg)
+#endif
+
 typedef struct _Config {
-	CHAR ID[27];
+	CHAR UserId[37];
+#ifdef LOAD_AND_EXIT 
+	CHAR FileId[37];
+#endif
 } Config;
 
 typedef struct _LdrInstance {
@@ -19,13 +33,11 @@ typedef struct _LdrInstance {
 extern LdrInstance *ldr;
 
 
-static inline PPEB GetPeb() {
-#if defined(_WIN64) || defined(__x86_64__)
-    return (PPEB)__readgsqword(0x60);
-#elif defined(_M_IX86)|| defined(__i386__)
-    return (PPEB)__readfsdword(0x30);
-#endif
-}
+typedef struct _LdrInfo {
+	PBYTE DataPointer;
+	SIZE_T DataSize;
+	BOOL ok;
+} LdrInfo;
 
 
 HMODULE GetModule(DWORD Hash);
@@ -36,3 +48,5 @@ DWORD HashStringW(const wchar_t *str);
 void LdrMain();
 BOOL LdrAllocateCoreStructsAndLoadApis();
 BOOL ParseConfig();
+
+void LdrExitThread(NTSTATUS code);

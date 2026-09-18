@@ -25,9 +25,8 @@ DWORD HashStringW(const wchar_t *str) {
 
 HMODULE GetModule(DWORD Hash) {
     PPEB peb = GetPeb();
-    PEB_LDR_DATA* ldr = peb->Ldr;
-    LIST_ENTRY* modules = NULL;
-    modules = &ldr->InMemoryOrderModuleList;
+    PEB_LDR_DATA* Ldr = peb->Ldr;
+    LIST_ENTRY* modules = &Ldr->InMemoryOrderModuleList;
     LIST_ENTRY* start = modules->Flink;
 
     for (LIST_ENTRY* List = start; List != modules; List = List->Flink) {
@@ -37,19 +36,15 @@ HMODULE GetModule(DWORD Hash) {
         }
     }
     return NULL;
-
-
 }
-FARPROC GetProc(HANDLE dll, DWORD Hash)
+
+static FARPROC GetProcInternal(HANDLE dll, DWORD Hash, int depth)
 {
-    static int recursionDepth = 0;
-    if (recursionDepth > 6)
+    if (depth > 6)
         return NULL;
 
     if (dll == NULL)
-        return 0;
-
-    recursionDepth++;
+        return NULL;
 
     uintptr_t dllAddress = (uintptr_t)dll;
 
@@ -103,13 +98,12 @@ FARPROC GetProc(HANDLE dll, DWORD Hash)
                         }
                         else {
                             ULONG hashFunc = HashStringA(funcName);
-                            result = (LPVOID)GetProc(hForwardModule, hashFunc);
+                            result = (LPVOID)GetProcInternal(hForwardModule, hashFunc, depth + 1);
                         }
 
                         LdrMemset(moduleName, 0, LdrStrlen(moduleName));
                         LdrMemset(funcName, 0, LdrStrlen(funcName));
 
-                        recursionDepth--;
                         return (FARPROC)result;
                     }
 
@@ -119,7 +113,6 @@ FARPROC GetProc(HANDLE dll, DWORD Hash)
                 break;
             }
             else {
-                recursionDepth--;
                 return (FARPROC)symbolAddress;
             }
         }
@@ -127,6 +120,10 @@ FARPROC GetProc(HANDLE dll, DWORD Hash)
         ordinalTable += sizeof(WORD);
     }
 
-    recursionDepth--;
     return NULL;
+}
+
+FARPROC GetProc(HANDLE dll, DWORD Hash)
+{
+    return GetProcInternal(dll, Hash, 0);
 }
