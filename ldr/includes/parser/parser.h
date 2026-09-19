@@ -16,6 +16,7 @@ void ParserClearRead(ParserRead *p);
 
 ParserWrite *ParserInitWrite();
 BOOL ParserWrite4(ParserWrite *p, DWORD Data);
+BOOL ParserReadBytes(ParserRead *p, PVOID dst, DWORD size);
 INT ParserWriteBytes(ParserWrite *p, PBYTE Data, SIZE_T len);
 PBYTE ParserWriteReturnPointer(ParserWrite *p);
 SIZE_T ParserWriteReturnSize(ParserWrite *p);

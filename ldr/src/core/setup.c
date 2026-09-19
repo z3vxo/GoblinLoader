@@ -36,13 +36,14 @@ BOOL LdrAllocateCoreStructsAndLoadApis() {
 	ldr->win32->NtAllocateVirtualMemory = (pNtAllocateVirtualMemory)GetProc(ntdll, 0x6793c34c);
 	ldr->win32->NtProtectVirtualMemory = (pNtProtectVirtualMemory)GetProc(ntdll, NTPROTECTVIRTUALMEMORY_HASH);
 	ldr->win32->NtFlushInstructionCache = (pNtFlushInstructionCache)GetProc(ntdll, NTFLUSHINSTRUCTIONCACHE_HASH);
-	ldr->win32->NtFreeVirtualMemory = (NtFreeVirtualMemory)GetProc(ntdll, HASHED_NtFreeVirtualMemory);
-#ifdef LISTEN_AND_WAIT
+	ldr->win32->NtFreeVirtualMemory = (pNtFreeVirtualMemory)GetProc(ntdll, HASHED_NtFreeVirtualMemory);
+#ifdef LOAD_AND_LISTEN
 	ldr->win32->CreateThread = (pCreateThread)GetProc(kernel32, HASHED_CreateThread);
 	ldr->win32->CloseHandle = (pCloseHandle)GetProc(kernel32, HASHED_CloseHandle);
 	ldr->win32->RegisterWaitForSingleObject = (pRegisterWaitForSingleObject)GetProc(kernel32, HASHED_RegisterWaitForSingleObject);
 	ldr->win32->UnregisterWait = (pUnregisterWait)GetProc(kernel32, HASHED_UnregisterWait);
 	ldr->win32->FreeLibrary = (pFreeLibrary)GetProc(kernel32, HASHED_FreeLibrary);
+	ldr->win32->NtDelayExecution = (pNtDelayExecution)GetProc(ntdll, HASHED_NtDelayExecution);
 #endif
 
 	return TRUE;

@@ -48,6 +48,7 @@ static FARPROC GetProcInternal(HANDLE dll, DWORD Hash, int depth)
 
     uintptr_t dllAddress = (uintptr_t)dll;
 
+
     PIMAGE_NT_HEADERS       ntHeaders = (PIMAGE_NT_HEADERS)(dllAddress + ((PIMAGE_DOS_HEADER)dllAddress)->e_lfanew);
     PIMAGE_DATA_DIRECTORY   dataDirectory = (PIMAGE_DATA_DIRECTORY)&ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
     PIMAGE_EXPORT_DIRECTORY exportDirectory = (PIMAGE_EXPORT_DIRECTORY)(dllAddress + dataDirectory->VirtualAddress);

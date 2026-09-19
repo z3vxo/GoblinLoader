@@ -46,6 +46,13 @@ char* ParserReadString(ParserRead *p) {
 	return s;
 }
 
+BOOL ParserReadBytes(ParserRead *p, PVOID dst, DWORD size) {
+	if (p->index + size > p->len) return FALSE;
+	LdrMemcpy(dst, p->buf + p->index, size);
+	p->index += size;
+	return TRUE;
+}
+
 INT ParserReadStringInto(ParserRead *p, char *dst, SIZE_T bufSize) {
 	if(bufSize == 0) return -1;
 	UINT32 n = ParserRead4(p);

