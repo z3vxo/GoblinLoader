@@ -35,13 +35,6 @@ typedef struct _LdrInstance {
 extern LdrInstance *ldr;
 
 
-typedef struct _LdrInfo {
-	PBYTE DataPointer;
-	SIZE_T DataSize;
-	BOOL ok;
-} LdrInfo;
-
-
 HMODULE GetModule(DWORD Hash);
 FARPROC GetProc(HANDLE dll, DWORD Hash);
 DWORD HashStringA(const char *str);

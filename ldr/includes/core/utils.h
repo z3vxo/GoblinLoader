@@ -47,17 +47,6 @@ static inline int LdrStrncmp(const char *s1, const char *s2, SIZE_T n) {
     return dst;
 }
 
-static inline int LdrMemcmp(const void *s1, const void *s2, SIZE_T n) {
-    volatile unsigned char *p1 = (volatile unsigned char *)s1;
-    volatile unsigned char *p2 = (volatile unsigned char *)s2;
-    for (SIZE_T i = 0; i < n; i++) {
-        if (p1[i] != p2[i]) {
-            return p1[i] - p2[i];  // was missing semicolon
-        }
-    }
-    return 0;
-}
-
  static inline void *LdrMemset(void *dst, int val, SIZE_T n) {
     volatile unsigned char *d = (volatile unsigned char *)dst;
     while (n--) *d++ = (unsigned char)val;

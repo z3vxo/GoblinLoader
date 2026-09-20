@@ -97,6 +97,20 @@ BOOL ParserWrite4(ParserWrite *p, DWORD Data) {
 	return TRUE;
 }
 
+BOOL ParserWrite8(ParserWrite *p, ULONGLONG Data) {
+	if(!ParserWriteGrow(p, 8)) return FALSE;
+	LdrMemcpy(p->buf + p->index, &Data, 8);
+	p->index += 8;
+	return TRUE;
+}
+
+BOOL ParserWriteRaw(ParserWrite *p, PBYTE Data, SIZE_T len) {
+	if(!ParserWriteGrow(p, len)) return FALSE;
+	LdrMemcpy(p->buf + p->index, Data, len);
+	p->index += len;
+	return TRUE;
+}
+
 INT ParserWriteBytes(ParserWrite *p, PBYTE Data, SIZE_T len) {
 	if(!ParserWriteGrow(p, 4 + len)) return -1;
 	ParserWrite4(p, (DWORD)len);
@@ -109,7 +123,6 @@ INT ParserWriteBytes(ParserWrite *p, PBYTE Data, SIZE_T len) {
 PBYTE ParserWriteReturnPointer(ParserWrite *p) { return p->buf; }
 SIZE_T ParserWriteReturnSize(ParserWrite *p)  { return p->index; }
 
-void ParserFreeString(char *s)         { ldr->win32->LocalFree(s); }
 void ParserClearRead(ParserRead *p)    { ldr->win32->LocalFree(p); }
 void ParserClearWrite(ParserWrite *p) {
 	if(p->buf) ldr->win32->LocalFree(p->buf);

@@ -155,24 +155,4 @@ void LdrPatchExitProcess(void) {
     ldr->ExitProcessPatched = TRUE;
     DBGA("[*] ExitProcess hooked -> RtlExitUserThread\n");
 }
-
-static VOID CALLBACK MemRunCallback(PVOID param, BOOLEAN timedOut) {
-    LdrMemContext *ctx = (LdrMemContext *)param;
-    PVOID Base = ctx->BaseAddress;
-
-    PIMAGE_DATA_DIRECTORY importDir = &OPT_HEADER(Base)->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-    if (importDir->VirtualAddress) {
-        PIMAGE_IMPORT_DESCRIPTOR pImport = RVA2VA(PIMAGE_IMPORT_DESCRIPTOR, Base, importDir->VirtualAddress);
-        for (; pImport->Name; pImport++) {
-            PCHAR name = RVA2VA(PCHAR, Base, pImport->Name);
-            HMODULE hMod = ldr->win32->LoadLibraryA(name);  
-            ldr->win32->FreeLibrary(hMod);                 
-            ldr->win32->FreeLibrary(hMod);                   
-        }
-    }
-
-    SIZE_T size = 0;
-    ldr->win32->NtFreeVirtualMemory(CurrentProcess(), &ctx->BaseAddress, &size, MEM_RELEASE);
-    ldr->win32->LocalFree(ctx);
-}
 #endif

