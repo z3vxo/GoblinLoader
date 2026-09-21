@@ -32,6 +32,8 @@ typedef BOOL(WINAPI *pCloseHandle)(HANDLE hObject);
 
 #define END_SIG 0xFF
 
+
+__attribute__((section(".text$B")))
 BOOL WINAPI ModuleEntry(pModule api, PVOID ctx, PBYTE args, DWORD ArgLen) {
 	HMODULE k32 = api->ModuleGetModule(HASHED_kernel32);
 	if (!k32)
@@ -66,9 +68,18 @@ BOOL WINAPI ModuleEntry(pModule api, PVOID ctx, PBYTE args, DWORD ArgLen) {
 	[size] 4 bytes
 */
 	DWORD EntryType = 0;
+	CHAR dot1[3];
+	CHAR dot2[2];
+
+	// PIC, cant use string literals as cbf dealing with .rdata
+	dot1[0] = '.';
+	dot1[1] = '.';
+	dot1[2] = '\0';
+	dot2[0] = '.';
+	dot2[1] = '\0';
 	do {
 
-		if(pStrcmp(fData.cFileName, "..") == 0 || pStrcmp(fData.cFileName, ".") == 0)  {
+		if(pStrcmp(fData.cFileName, dot1) == 0 || pStrcmp(fData.cFileName, dot2) == 0)  {
 			continue;
 		}
 		if(fData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {

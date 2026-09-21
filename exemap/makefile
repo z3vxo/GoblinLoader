@@ -27,7 +27,7 @@ x64: clean
 	@ echo "[*] Extracting .text section..."
 	@ $(OBJCOPY) -O binary -j .text $(OUTPUT_X64) $(LOADER_BIN)
 	@ echo "[*] Compiling payload EXE (fixed base, no .reloc)..."
-	@ $(CCX64) $(PAYLOAD_SRC) -o $(PAYLOAD_EXE) -lkernel32 -luser32 -Wl,--disable-dynamicbase
+	@ $(CCX64) $(PAYLOAD_SRC) -o $(PAYLOAD_EXE) -lkernel32 -lshell32 -lshell32 -Wl,--disable-dynamicbase
 	@ $(OBJCOPY) --remove-section=.reloc $(PAYLOAD_EXE)
 	@ echo "[*] Prepending loader to EXE..."
 	@ cat $(LOADER_BIN) $(PAYLOAD_EXE) > $(OUTPUT)

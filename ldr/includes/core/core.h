@@ -29,6 +29,7 @@ typedef struct _LdrInstance {
 	Modules *modules;
 	Config *config;
 	BOOL ExitProcessPatched;
+	PVOID TextSection;
 
 } LdrInstance;
 

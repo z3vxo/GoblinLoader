@@ -40,6 +40,16 @@ static inline int LdrStrncmp(const char *s1, const char *s2, SIZE_T n) {
     return 0;
 }
 
+static inline int LdrMemcmp(const void *s1, const void *s2, SIZE_T n) {
+    const volatile unsigned char *p1 = (const volatile unsigned char *)s1;
+    const volatile unsigned char *p2 = (const volatile unsigned char *)s2;
+    for (SIZE_T i = 0; i < n; i++) {
+        if (p1[i] != p2[i])
+            return p1[i] - p2[i];
+    }
+    return 0;
+}
+
  static inline void *LdrMemcpy(void *dst, const void *src, SIZE_T n) {
     volatile unsigned char *d = (volatile unsigned char *)dst;
     const unsigned char *s = (const unsigned char *)src;

