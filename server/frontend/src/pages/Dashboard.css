@@ -1,0 +1,202 @@
+/* ── Layout ─────────────────────────────────────── */
+
+.dashboard {
+  height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Topbar ─────────────────────────────────────── */
+
+.topbar {
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.topbar-wordmark {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-strong);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── Nav tabs ───────────────────────────────────── */
+
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tab-link {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-subtle);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 150ms ease, border-color 150ms ease;
+  white-space: nowrap;
+}
+
+.tab-link:hover { color: var(--text-muted); }
+
+.tab-link.active {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Campaign dropdown ──────────────────────────── */
+
+.campaign-select-wrap {
+  position: relative;
+}
+
+.campaign-btn {
+  height: 32px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: border-color 150ms ease, background 150ms ease;
+  white-space: nowrap;
+  min-width: 160px;
+}
+
+.campaign-btn:hover {
+  background: var(--surface-3);
+  border-color: var(--text-disabled);
+}
+
+.campaign-btn-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.campaign-btn-placeholder {
+  flex: 1;
+  color: var(--text-subtle);
+}
+
+.campaign-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--text-subtle);
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+.campaign-chevron.open {
+  transform: rotate(180deg);
+}
+
+.campaign-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  z-index: 100;
+}
+
+.campaign-dropdown-empty {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+
+.campaign-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.campaign-option:hover {
+  background: var(--surface-2);
+}
+
+.campaign-option.active {
+  background: var(--accent-tint);
+}
+
+.campaign-option-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.campaign-option.active .campaign-option-name {
+  color: var(--accent-strong);
+}
+
+.campaign-option-date {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+}
+
+/* ── Main content ───────────────────────────────── */
+
+.dashboard-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.no-campaign {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.no-campaign-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+}
+
+.no-campaign-hint {
+  font-size: 13px;
+  color: var(--text-disabled);
+}

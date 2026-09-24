@@ -19,7 +19,7 @@ func GetDbPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s/.local/share/ldr/database/app.db", home), nil
+	return fmt.Sprintf("%s/.local/share/ldr/db/app.db", home), nil
 }
 
 
@@ -33,45 +33,53 @@ func SetupDB(path string) (*sql.DB, error) {
 		return nil, errors.New("[!] Failed Connecting to DB")
 	}
 
-	usersTable := `CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL,
-    password TEXT NOT NULL
-);`
-
-
-
-	_, err = db.Exec(usersTable)
-	if err != nil {
+	// Enable foreign key enforcement (off by default in SQLite)
+	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
 		return nil, err
 	}
 
-	campaignTable := `CREATE TABLE IF NOT EXISTS campaigns(
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);`
+	tables := []string{
+		`CREATE TABLE IF NOT EXISTS users (
+			id       INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT    NOT NULL,
+			password TEXT    NOT NULL
+		)`,
 
-	_, err = db.Exec(campaignTable)
-	if err != nil {
-		return nil, err
+		`CREATE TABLE IF NOT EXISTS campaigns (
+			id         INTEGER  PRIMARY KEY AUTOINCREMENT,
+			uuid       TEXT     NOT NULL UNIQUE,
+			name       TEXT     NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		`CREATE TABLE IF NOT EXISTS agents (
+			id              INTEGER PRIMARY KEY AUTOINCREMENT,
+			uuid            TEXT    NOT NULL,
+			campaign_uuid   TEXT    NOT NULL REFERENCES campaigns(uuid) ON DELETE CASCADE,
+			username        TEXT    NOT NULL,
+			hostname        TEXT    NOT NULL,
+			domain          TEXT    NOT NULL,
+			architecture    TEXT    NOT NULL,
+			country         TEXT    NOT NULL
+		)`,
+
+		`CREATE TABLE IF NOT EXISTS files (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			uuid          TEXT    NOT NULL,
+			campaign_uuid TEXT    NOT NULL REFERENCES campaigns(uuid) ON DELETE CASCADE,
+			name          TEXT    NOT NULL,
+			size          INTEGER NOT NULL,
+			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
 	}
 
-	agentTable := `CREATE TABLE IF NOT EXISTS agents(
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		uuid TEXT NOT NULL,
-		username TEXT NOT NULL,
-		hostname TEXT NOT NULL,
-		domain   TEXT NOT NULL,
-		architecure TEXT NOT NULL);`
-
-	_, err = db.Exec(agentTable)
-	if err != nil {
-		return nil, err
+	for _, stmt := range tables {
+		if _, err := db.Exec(stmt); err != nil {
+			return nil, err
+		}
 	}
 
 	return db, nil
-
 }
 
 

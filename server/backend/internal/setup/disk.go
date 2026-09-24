@@ -1,11 +1,20 @@
 package setup
 
-
 import (
-	//"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 )
+
+func checkWritable(dir string) error {
+	f, err := os.CreateTemp(dir, ".writetest")
+	if err != nil {
+		return fmt.Errorf("cannot write to %s — if a previous run was as root, remove it first:\n  sudo rm -rf %s", dir, filepath.Dir(dir))
+	}
+	f.Close()
+	os.Remove(f.Name())
+	return nil
+}
 
 func SetupFolder() (*os.File, string, error) {
 	home, err := os.UserHomeDir()
@@ -15,23 +24,21 @@ func SetupFolder() (*os.File, string, error) {
 
 	dirPath := filepath.Join(home, ".local", "share", "ldr")
 
-	dbir := filepath.Join(dirPath, "db")
-	if err := os.MkdirAll(dbir, 0755); err != nil {
+	dbDir := filepath.Join(dirPath, "db")
+	if err := os.MkdirAll(dbDir, 0755); err != nil {
+		return nil, "", err
+	}
+	if err := checkWritable(dbDir); err != nil {
 		return nil, "", err
 	}
 
-
-	dbPath := filepath.Join(dbir, "app.db")
-	dbFile, err := os.Create(dbPath)
-	if err != nil {
-		return nil, "", err
-	}
-
-	dbFile.Close()
-
+	dbPath := filepath.Join(dbDir, "app.db")
 
 	configDir := filepath.Join(dirPath, "config")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return nil, "", err
+	}
+	if err := checkWritable(configDir); err != nil {
 		return nil, "", err
 	}
 
@@ -41,6 +48,4 @@ func SetupFolder() (*os.File, string, error) {
 	}
 
 	return configFile, dbPath, nil
-
-
 }

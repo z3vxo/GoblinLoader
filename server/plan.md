@@ -1,40 +1,57 @@
-# self hosted server
+# overview for server
 
 
-1. on startup take in user creds
-2. collect machine identifiers
-3. POST to our domain /login with creds -> returns very short lived JWT
-4. POST to our domain /register with jwt and machine data -> server verfiys subscription, verfiys not already registered etc -> returns long lived signed token used for protected routes
+**BACKEND**
+the backend is a golang webserver in chi, handles storage, communicating with licensing server and more
+
+
+**FRONTEND**
+front end is a react SPA app
+
+on login you land on the dashboard
+the app is built around the current campaign id
+in the top right is a drop down box with all campaigns -> gotten via GET /rest/campaigns/metadata(just returns UUID + name, name is shown in the drop down)
+
+the landing page is a statisics of the campaign
+total users, most common country, users overtime etc
+
+on the left is a panel(can be folded to hide it or show it)
+with
+- users
+- campaign
+- builder
+- files
+- settings
+
+**USERS**
+GET /rest/users/{campaign id} -> to list them all
+DELETE /rest/users/{campaign id} -> to delete one
+list the users of current campaign gotten via
+
+one per line
+a user can be doubled clicked which opens a terminal on the bottom half of the page and updates react internal userInUse UUID
+
+**CAMPAIGN**
+GET /rest/campaigns/ -> list all campaigns(uuid, name, created at, total users etc)
+DELETE /rest/campaigns/{uuid} -> delete campaign
+PATCH /rest/campaigns/{uuid} -> edit campaign
+POST /rest/campaigns/create -> create campaign
+the managemnt for them, can create ones, delete, modify etc 
+1 per line
 
 
 
-routes for self hosted
-/api/login -> usual login route, used after setup, just checks local DB for users
+**BUILDER**
+POST /rest/builder/create -> create
+builder panel
+choose type, file etc
 
 
+**FILES**
+GET /rest/files/{campaign id} -> list them all
+DELETE /rest/files/{campaign id}/{file id} -> delete one
 
 
-GET /api/campiagns -> list campaigns, 
-POST /api/campiagns -> create campaing 
-DELETE /api/campiagns -> delete campaing
-PATCH /api/campiagn -> modify info about campaign
-
-these 2 below together
-/api/file/upload -> upload payload also sends campaing ID to easily map them, server generates uuid, checks file type, if exe checks for .reloc etc stores into DB(uuid, file path, file type, has .reloc etc)
-returns uuid, 
-/api/build -> sends output type, file uuid, load and exit vs load and listen etc, proxys to our backend /internal/build -> server also returns agent id(server maps to campaing id) returns chosen output
-
-
-
-GET /api/hosts?id=<campaing id> -> return all hosts for specific campaing 
-POST /api/host/sendtask -> send task to specific agent using agent id
-
-
-
-so the flow is
-1. user signs in
-2. presses on campaigns
-3. presses on whatever campaign
-4. loads to /campaing/<uuid> which pulls hosts
-5. can press "files" -> shows files for campaing
-6. can press "builds" -> list builds for campaings(links file)
+**SETTINGS**
+management area
+can update backend ip/domain for licensing server, change password etc
