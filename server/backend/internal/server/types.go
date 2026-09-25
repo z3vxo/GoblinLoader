@@ -1,6 +1,10 @@
 package server
 
 
+const (
+	CODE_CHECK_IN = 0xac
+	CODE_REGISTER = 0xab
+)
 
 type LoginReq struct {
 	Username string `json:"username"`

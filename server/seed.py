@@ -31,22 +31,7 @@ for username, hostname, domain, arch, country in agents:
                  VALUES (?, ?, ?, ?, ?, ?, ?)""",
               (str(uuid.uuid4()), camp_uuid, username, hostname, domain, arch, country))
 
-files = [
-    ("mimikatz.exe",     2_457_600,  "2026-09-02 11:00:00"),
-    ("beacon.bin",         184_320,  "2026-09-03 15:22:00"),
-    ("lsass.dmp",       52_428_800,  "2026-09-05 09:45:00"),
-    ("svc_implant.dll",    245_760,  "2026-09-11 10:10:00"),
-    ("creds.txt",            4_096,  "2026-09-12 16:30:00"),
-    ("shellcode.bin",       40_960,  "2026-09-21 08:30:00"),
-    ("recon.txt",            8_192,  "2026-09-22 13:15:00"),
-    ("privesc.exe",        819_200,  "2026-09-23 17:00:00"),
-]
-
-for name, size, created_at in files:
-    c.execute("""INSERT INTO files (uuid, campaign_uuid, name, size, created_at)
-                 VALUES (?, ?, ?, ?, ?)""",
-              (str(uuid.uuid4()), camp_uuid, name, size, created_at))
 
 conn.commit()
 conn.close()
-print(f"[*] Seeded 1 campaign, {len(agents)} agents, {len(files)} files")
+print(f"[*] Seeded 1 campaign, {len(agents)} agents")

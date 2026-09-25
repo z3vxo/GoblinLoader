@@ -13,6 +13,11 @@ func writeJson(w http.ResponseWriter, msg string, status int) {
 } 
 
 
+func Return400(w http.ResponseWriter, msg string) {
+	writeJson(w, msg, http.StatusBadRequest)
+} 
+
+
 func Return500(w http.ResponseWriter, msg string) {
 	writeJson(w, msg, http.StatusInternalServerError)
 } 

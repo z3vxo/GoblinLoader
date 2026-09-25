@@ -56,7 +56,7 @@ export default function Login() {
     <div className="login-wrap">
       <div className="login-card">
         <div className="login-header">
-          <span className="login-wordmark">ldrserver</span>
+          <span className="login-wordmark">AetherLoader</span>
           <h1 className="login-title">Sign in</h1>
           <p className="login-subtitle">Enter your credentials to continue.</p>
         </div>

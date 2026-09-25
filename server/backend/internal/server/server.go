@@ -28,13 +28,15 @@ func New() (*Server, error) {
         return nil, err
     }
 
+    hub := ws.New(db)
+
     return &Server{
         Httpserver: &http.Server{
             Addr:              ":8080",
             ReadHeaderTimeout: 15 * time.Second,
         },
         DB: db,
-        WS: ws.New(),
+        WS: hub,
     }, nil
 }
 
@@ -57,16 +59,23 @@ func (s *Server) Start() error {
 
 	r.Route("/rest", func(r chi.Router) {
 	    r.Post("/login", s.LoginHandler)
+        r.Post("/checkin", s.HandleAgentCheckin)
 
 	    r.Group(func(r chi.Router) {
 	        r.Use(s.AuthMiddleware)
-            r.Get("/ws/{agentID}", s.WS.Handler)
+            r.Get("/ws", s.WS.Handler)
 	        r.Get("/campaigns", s.GetCampaigns)
 	        r.Post("/campaigns", s.CreateCampaign)
 	        r.Delete("/campaigns/{id}", s.DeleteCampaign)
 
             r.Get("/agents/{id}", s.GetAgents)
             r.Delete("/agents/{id}", s.DeleteAgent)
+
+            
+
+            r.Get("/files/{campaignID}", s.ListFiles)
+            r.Post("/files/{campaignID}", s.UploadFile)
+            r.Delete("/files/{id}", s.DeleteFile)
 	    })
 	})
 

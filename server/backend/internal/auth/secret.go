@@ -2,4 +2,4 @@
 
 package auth
 
-var secret = []byte("4d5f7385557db89984b018211edfc71ecaf83826362ca1a677546ce0164d8ad7")
+var secret = []byte("000f205bacfb989086f048d6f8e4260ab7deb39549890b2a3a862720b9583ddb")

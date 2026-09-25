@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useCampaign } from '../../context/CampaignContext'
 import { useTerminal } from '../../context/TerminalContext'
+import { useSocket } from '../../context/SocketContext'
 import './UsersTab.css'
+
+const WS_LIST_FILES = 1
 
 function SearchIcon() {
   return (
@@ -40,10 +43,10 @@ function CloseIcon() {
 }
 
 function Terminal({ agent, onClose }) {
+  const { currentCampaign } = useCampaign()
+  const { state: connState, send, on } = useSocket()
   const [lines, setLines] = useState([])
   const [input, setInput] = useState('')
-  const [connState, setConnState] = useState('connecting')
-  const socketRef = useRef(null)
   const bodyRef = useRef(null)
 
   useEffect(() => {
@@ -52,62 +55,54 @@ function Terminal({ agent, onClose }) {
   }, [lines])
 
   useEffect(() => {
-    let jwt = null
-    try { jwt = localStorage.getItem('jwt') } catch {}
+    return on('agent.output', data => {
+      if (!data) return
+      const id = data.agent_id || data.uuid
+      if (id !== agent.uuid) return
+      setLines(ls => [...ls, { kind: 'out', text: data.output ?? data.text ?? '' }])
+    })
+  }, [on, agent.uuid])
 
-    if (!jwt) {
-      setConnState('closed')
-      return
-    }
-
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const url = `${proto}://${window.location.host}/rest/ws/${encodeURIComponent(agent.uuid)}?token=${encodeURIComponent(jwt)}`
-
-    const socket = new WebSocket(url)
-    socketRef.current = socket
-
-    socket.onopen = () => setConnState('open')
-    socket.onclose = () => setConnState('closed')
-    socket.onerror = () => setConnState('closed')
-    socket.onmessage = ev => setLines(ls => [...ls, { kind: 'out', text: ev.data }])
-
-    return () => {
-      socket.onopen = socket.onclose = socket.onerror = socket.onmessage = null
-      socket.close()
-      socketRef.current = null
-    }
-  }, [agent.uuid])
-
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault()
     const text = input
     if (!text) return
     setLines(ls => [...ls, { kind: 'cmd', text }])
+    setInput('')
 
-    const socket = socketRef.current
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(text)
-    } else {
-      setLines(ls => [...ls, { kind: 'out', text: '[no connection]' }])
+    if (text.trim().toLowerCase() !== 'files') {
+      setLines(ls => [...ls, { kind: 'out', text: '[not implemented]' }])
+      return
+    }
+    if (!currentCampaign) {
+      setLines(ls => [...ls, { kind: 'out', text: '[no campaign selected]' }])
+      return
     }
 
-    setInput('')
+    const res = await send({
+      code: WS_LIST_FILES,
+      agent_id: agent.uuid,
+      campaign_id: currentCampaign.uuid,
+    })
+
+    if (!res || !res.ok) {
+      setLines(ls => [...ls, { kind: 'out', text: `[error] ${res?.msg || 'request failed'}` }])
+      return
+    }
+
+    const files = res.data?.files ?? []
+    setLines(ls => {
+      const out = [{ kind: 'out', text: `files (${res.data?.total ?? files.length})` }]
+      if (files.length === 0) out.push({ kind: 'out', text: '  no files' })
+      for (const f of files) out.push({ kind: 'out', text: `  ${f.uuid}  ${f.name}` })
+      return [...ls, ...out]
+    })
   }
 
   const statusLabel =
     connState === 'open' ? 'connected'
       : connState === 'closed' ? 'disconnected'
         : 'connecting…'
-
-  function handleClose() {
-    const socket = socketRef.current
-    if (socket) {
-      socket.onopen = socket.onclose = socket.onerror = socket.onmessage = null
-      socket.close()
-      socketRef.current = null
-    }
-    onClose()
-  }
 
   return (
     <div className="terminal">
@@ -118,7 +113,7 @@ function Terminal({ agent, onClose }) {
           <span className="terminal-status-dot" />
           {statusLabel}
         </span>
-        <button className="terminal-close" onClick={handleClose} title="Close terminal">
+        <button className="terminal-close" onClick={onClose} title="Close terminal">
           <CloseIcon />
         </button>
       </div>
@@ -152,9 +147,11 @@ function Terminal({ agent, onClose }) {
 export default function UsersTab() {
   const { currentCampaign } = useCampaign()
   const { activeAgent, setActiveAgent } = useTerminal()
+  const { on } = useSocket()
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
+  const refreshTimer = useRef(null)
 
   const jwt = (() => { try { return localStorage.getItem('jwt') } catch { return null } })()
 
@@ -169,6 +166,16 @@ export default function UsersTab() {
   }, [currentCampaign, jwt])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    return on('agent.checkin', () => {
+      if (refreshTimer.current) return
+      refreshTimer.current = setTimeout(() => {
+        refreshTimer.current = null
+        load()
+      }, 1000)
+    })
+  }, [on, load])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

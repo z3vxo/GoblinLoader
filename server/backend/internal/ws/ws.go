@@ -1,21 +1,52 @@
 package ws
 
 import (
+	"encoding/json"
 	"net/http"
 	"sync"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
+	"ldrserver/internal/database"
 )
+
+const (
+	CodeListFiles = 1
+)
+
+type WsReq struct {
+	Type       string          `json:"type"`
+	ID         string          `json:"id"`
+	Code       int             `json:"code"`
+	AgentID    string          `json:"agent_id"`
+	CampaignID string          `json:"campaign_id"`
+	Payload    json.RawMessage `json:"payload"`
+}
+
+type frame struct {
+	Type  string      `json:"type"`
+	ID    string      `json:"id,omitempty"`
+	Code  int         `json:"code,omitempty"`
+	Event string      `json:"event,omitempty"`
+	OK    bool        `json:"ok,omitempty"`
+	Data  interface{} `json:"data,omitempty"`
+	Msg   string      `json:"msg,omitempty"`
+}
+
+type Client struct {
+	conn *websocket.Conn
+	send chan []byte
+}
 
 type WS struct {
 	mu      sync.RWMutex
-	Clients map[string]*websocket.Conn
+	Clients map[*Client]struct{}
+	DB      *database.DB
 }
 
-func New() *WS {
+func New(d *database.DB) *WS {
 	return &WS{
-		Clients: make(map[string]*websocket.Conn),
+		Clients: make(map[*Client]struct{}),
+		DB:      d,
 	}
 }
 
@@ -23,50 +54,94 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func (ws *WS) Add(id string, conn *websocket.Conn) {
+func (ws *WS) add(c *Client) {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	ws.Clients[id] = conn
+	ws.Clients[c] = struct{}{}
 }
 
-func (ws *WS) Remove(id string) {
+func (ws *WS) remove(c *Client) {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	delete(ws.Clients, id)
+	delete(ws.Clients, c)
 }
 
-func (ws *WS) Send(id, msg string) error {
-	ws.mu.RLock()
-	conn, ok := ws.Clients[id]
-	ws.mu.RUnlock()
-	if !ok {
-		return nil
+func (ws *WS) Broadcast(event string, data interface{}) {
+	b, err := json.Marshal(frame{Type: "event", Event: event, Data: data})
+	if err != nil {
+		return
 	}
 
-	return conn.WriteMessage(websocket.TextMessage, []byte(msg))
+	ws.mu.RLock()
+	defer ws.mu.RUnlock()
+	for c := range ws.Clients {
+		select {
+		case c.send <- b:
+		default:
+		}
+	}
+}
+
+func (ws *WS) reply(c *Client, f frame) {
+	b, err := json.Marshal(f)
+	if err != nil {
+		return
+	}
+	select {
+	case c.send <- b:
+	default:
+	}
+}
+
+func (ws *WS) handle(c *Client, msg []byte) {
+	var req WsReq
+	if err := json.Unmarshal(msg, &req); err != nil {
+		ws.reply(c, frame{Type: "res", OK: false, Msg: "invalid request"})
+		return
+	}
+
+	switch req.Code {
+	case CodeListFiles:
+		files, err := ws.DB.ListFileMetadata(req.CampaignID)
+		if err != nil {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "failed listing files"})
+			return
+		}
+		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: true, Data: files})
+	default:
+		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "unknown code"})
+	}
+}
+
+func (c *Client) writeLoop() {
+	defer c.conn.Close()
+	for msg := range c.send {
+		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			return
+		}
+	}
 }
 
 func (ws *WS) Handler(w http.ResponseWriter, r *http.Request) {
-	uuid := chi.URLParam(r, "agentID")
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 
-	ws.Add(uuid, conn)
+	c := &Client{conn: conn, send: make(chan []byte, 64)}
+	ws.add(c)
+	go c.writeLoop()
+
 	defer func() {
-		ws.Remove(uuid)
-		conn.Close()
+		ws.remove(c)
+		close(c.send)
 	}()
 
 	for {
-		mt, msg, err := conn.ReadMessage()
+		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			break
 		}
-
-		if err := conn.WriteMessage(mt, msg); err != nil {
-			break
-		}
+		ws.handle(c, msg)
 	}
 }

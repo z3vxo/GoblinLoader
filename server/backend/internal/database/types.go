@@ -27,3 +27,30 @@ type Agents struct {
 	Total int `json:"total"`
 	Agents []Agent `json:"agents"`
 }
+
+type File struct {
+	UUID         string `json:"uuid"`
+	CampaignUUID string `json:"campaign_uuid"`
+	Name         string `json:"name"`
+	Size         int64  `json:"size"`
+	Kind         string `json:"kind"`
+	Arch         string `json:"arch"`
+	HasReloc     bool   `json:"has_reloc"`
+	SHA256       string `json:"sha256"`
+	CreatedAt    string `json:"created_at"`
+}
+
+type Files struct {
+	Total int    `json:"total"`
+	Files []File `json:"files"`
+}
+
+type FileResp struct {
+	UUID string `json:"uuid"`
+	Name string `json:"name"`
+}
+
+type FileListResp struct {
+	Total int        `json:"total"`
+	Files []FileResp `json:"files"`
+}
