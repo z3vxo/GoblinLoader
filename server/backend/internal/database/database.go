@@ -59,7 +59,9 @@ func SetupDB(path string) (*sql.DB, error) {
 			username        TEXT    NOT NULL,
 			hostname        TEXT    NOT NULL,
 			domain          TEXT    NOT NULL,
+			process			TEXT    NOT NULL,
 			architecture    TEXT    NOT NULL,
+			isElev          INTEGER NOT NULL,
 			country         TEXT    NOT NULL,
 			last_seen       DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,

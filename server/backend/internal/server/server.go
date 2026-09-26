@@ -69,6 +69,7 @@ func (s *Server) Start() error {
 	        r.Delete("/campaigns/{id}", s.DeleteCampaign)
 
             r.Get("/agents/{id}", s.GetAgents)
+            r.Get("/agents/{id}/{agentid}", s.GetAgentInfo)
             r.Delete("/agents/{id}", s.DeleteAgent)
 
             

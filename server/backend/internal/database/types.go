@@ -20,7 +20,9 @@ type Agent struct {
 	Hostname string `json:"hostname"`
 	Domain string `json:"domain"`
 	Arch   string `json:"arch"`
+	IsElev int `json:"is_elev"`
 	Country string `json:"country"`
+	LastSeen string `json:"last_seen"`
 }
 
 type Agents struct {
@@ -53,4 +55,16 @@ type FileResp struct {
 type FileListResp struct {
 	Total int        `json:"total"`
 	Files []FileResp `json:"files"`
+}
+
+
+type AgentInfo struct {
+	Username string `json:"username"`
+	Hostname string `json:"hostname"`
+	Domain   string `json:"domain"`
+	Process  string `json:"process"`
+	Arch     string `json:"arch"`
+	Country  string `json:"country"`
+	IsElev   int    `json:"is_elev"`
+
 }

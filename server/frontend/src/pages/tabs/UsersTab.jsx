@@ -49,6 +49,8 @@ function Terminal({ agent, onClose }) {
   const [input, setInput] = useState('')
   const bodyRef = useRef(null)
 
+  const jwt = (() => { try { return localStorage.getItem('jwt') } catch { return null } })()
+
   useEffect(() => {
     const el = bodyRef.current
     if (el) el.scrollTop = el.scrollHeight
@@ -70,7 +72,43 @@ function Terminal({ agent, onClose }) {
     setLines(ls => [...ls, { kind: 'cmd', text }])
     setInput('')
 
-    if (text.trim().toLowerCase() !== 'files') {
+    const cmd = text.trim().toLowerCase()
+
+    if (cmd === 'info') {
+      if (!currentCampaign) {
+        setLines(ls => [...ls, { kind: 'out', text: '[no campaign selected]' }])
+        return
+      }
+      try {
+        const r = await fetch(`/rest/agents/${currentCampaign.uuid}/${agent.uuid}`, {
+          headers: { Authorization: jwt },
+        })
+        if (!r.ok) {
+          setLines(ls => [...ls, { kind: 'out', text: `[error] ${r.status} ${r.statusText}` }])
+          return
+        }
+        const info = await r.json()
+        const rows = [
+          ['User', info.username],
+          ['Host', info.hostname],
+          ['Hostname', info.domain],
+          ['Process', info.process],
+          ['Arch', info.arch],
+          ['Is Admin', info.is_elev ? 'TRUE' : 'FALSE'],
+          ['Country', info.country],
+        ]
+        setLines(ls => [...ls, ...rows.map(([key, value]) => ({
+          kind: 'kv',
+          key,
+          value: value || '—',
+        }))])
+      } catch {
+        setLines(ls => [...ls, { kind: 'out', text: '[error] request failed' }])
+      }
+      return
+    }
+
+    if (cmd !== 'files') {
       setLines(ls => [...ls, { kind: 'out', text: '[not implemented]' }])
       return
     }
@@ -124,7 +162,9 @@ function Terminal({ agent, onClose }) {
           : lines.map((l, i) =>
               l.kind === 'cmd'
                 ? <div key={i} className="term-cmd"><span className="term-prompt">›</span>{l.text}</div>
-                : <div key={i} className="term-out">{l.text}</div>
+                : l.kind === 'kv'
+                  ? <div key={i} className="term-kv"><span className="term-key">{l.key}</span><span className="term-val">{l.value}</span></div>
+                  : <div key={i} className="term-out">{l.text}</div>
             )
         }
       </div>
@@ -151,7 +191,6 @@ export default function UsersTab() {
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
-  const refreshTimer = useRef(null)
 
   const jwt = (() => { try { return localStorage.getItem('jwt') } catch { return null } })()
 
@@ -168,20 +207,25 @@ export default function UsersTab() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    return on('agent.checkin', () => {
-      if (refreshTimer.current) return
-      refreshTimer.current = setTimeout(() => {
-        refreshTimer.current = null
-        load()
-      }, 1000)
+    return on('agent.new', data => {
+      if (!data?.agent) return
+      if (data.campaign_id && currentCampaign && data.campaign_id !== currentCampaign.uuid) return
+      const incoming = data.agent
+      setAgents(prev => {
+        const i = prev.findIndex(a => a.uuid === incoming.uuid)
+        if (i === -1) return [...prev, incoming]
+        const next = prev.slice()
+        next[i] = incoming
+        return next
+      })
     })
-  }, [on, load])
+  }, [on, currentCampaign])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return agents
     return agents.filter(a =>
-      [a.hostname, a.username, a.domain, a.arch, a.country, a.uuid]
+      [a.hostname, a.username, a.domain, a.arch, a.country, String(a.is_elev)]
         .some(v => v && v.toLowerCase().includes(q))
     )
   }, [agents, query])
@@ -231,15 +275,16 @@ export default function UsersTab() {
                 <th className="col-user">User</th>
                 <th className="col-domain">Domain</th>
                 <th className="col-arch">Arch</th>
+                <th className="col-admin">Is Admin</th>
                 <th className="col-country">Country</th>
-                <th className="col-uuid">UUID</th>
+                <th className="col-lastseen">Last Seen</th>
               </tr>
             </thead>
             <tbody>
               {loading
-                ? <tr><td colSpan={8} className="agents-cell-msg">Loading…</td></tr>
+                ? <tr><td colSpan={9} className="agents-cell-msg">Loading…</td></tr>
                 : filtered.length === 0
-                  ? <tr><td colSpan={8} className="agents-cell-msg">
+                  ? <tr><td colSpan={9} className="agents-cell-msg">
                       {query ? 'No agents match your filter.' : 'No agents for this campaign.'}
                     </td></tr>
                   : filtered.map(a => {
@@ -258,10 +303,15 @@ export default function UsersTab() {
                           <td className="col-status"><span className="agent-dot" /></td>
                           <td className="col-host">{a.hostname}</td>
                           <td className="col-user">{a.username}</td>
-                          <td className="col-domain">{a.domain}</td>
+                          <td className="col-domain">{a.domain || '—'}</td>
                           <td className="col-arch"><span className="agent-tag">{a.arch}</span></td>
+                          <td className="col-admin">
+                            {a.is_elev
+                              ? <span className="agent-tag">yes</span>
+                              : <span className="agent-admin-no">no</span>}
+                          </td>
                           <td className="col-country">{a.country || '—'}</td>
-                          <td className="col-uuid">{a.uuid}</td>
+                          <td className="col-lastseen">{a.last_seen || '—'}</td>
                         </tr>
                       )
                     })

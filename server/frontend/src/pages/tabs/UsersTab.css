@@ -175,11 +175,12 @@
 .col-actions  { width: 44px; }
 .col-status  { width: 36px; }
 .col-arch     { width: 90px; }
+.col-admin    { width: 90px; }
 .col-country  { width: 130px; }
+.col-lastseen { width: 170px; }
 .col-host     { width: 22%; }
 .col-user     { width: 15%; }
 .col-domain   { width: 15%; }
-.col-uuid     { width: auto; }
 
 .col-actions, .col-status { padding-right: 0; }
 
@@ -223,6 +224,7 @@
 }
 
 .col-arch { overflow: visible; }
+.col-admin { overflow: visible; }
 
 .agent-tag {
   display: inline-block;
@@ -234,9 +236,13 @@
   padding: 2px 8px;
 }
 
+.agent-admin-no {
+  color: var(--text-subtle);
+}
+
 .col-country { color: var(--text-muted); }
 
-.col-uuid {
+.col-lastseen {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-subtle);
@@ -394,6 +400,21 @@
 
 .term-cmd { color: var(--text); }
 .term-out { color: var(--text-muted); }
+
+.term-kv {
+  display: flex;
+  gap: 12px;
+}
+
+.term-key {
+  min-width: 76px;
+  color: var(--text-subtle);
+}
+
+.term-val {
+  color: var(--text);
+  word-break: break-word;
+}
 
 .terminal-form {
   display: flex;

@@ -121,7 +121,6 @@ void LdrSetSectionPerms(PVOID Base, PIMAGE_SECTION_HEADER sec, WORD numSections)
 }
 
 
-#ifdef LOAD_AND_LISTEN
 void LdrPatchExitProcess(void) {
     if (ldr->ExitProcessPatched)
         return;
@@ -155,4 +154,3 @@ void LdrPatchExitProcess(void) {
     ldr->ExitProcessPatched = TRUE;
     DBGA("[*] ExitProcess hooked -> RtlExitUserThread\n");
 }
-#endif

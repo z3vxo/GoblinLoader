@@ -4,6 +4,8 @@ package server
 const (
 	CODE_CHECK_IN = 0xac
 	CODE_REGISTER = 0xab
+
+	TASK_NO_TASK  = 0xff
 )
 
 type LoginReq struct {

