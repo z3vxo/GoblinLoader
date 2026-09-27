@@ -1,5 +1,5 @@
 # GoblinLoader
-[![Ask DeepWiki](https://devin.ai/assets/askdeepwiki.png)](https://deepwiki.com/z3vxo/GoblinLoader)
+
 
 GoblinLoader is a post-exploitation framework featuring a Command & Control (C2) server and multiple Windows loaders. The C2 server is built with a Go backend and a React frontend, providing a modern web interface for managing campaigns, agents, and tasking. The loaders are designed for stealth and flexibility, employing techniques like in-memory execution, process hollowing, reflective loading, and dynamic API resolution.
 
