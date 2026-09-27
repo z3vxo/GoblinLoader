@@ -1,12 +1,11 @@
 #include <windows.h>
-#include <shlobj.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static int g_executions = 1;
 
-static const char g_banner[] = "Hollowed payload executed";
+static const char g_banner[] = "Payload executed (no GUI)";
 
 int main() {
     SYSTEM_INFO si;
@@ -19,12 +18,9 @@ int main() {
     char mod[MAX_PATH];
     GetModuleFileNameA(NULL, mod, MAX_PATH);
 
-    char desktop[MAX_PATH];
-    if (SHGetFolderPathA(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, desktop) != S_OK)
-        strcpy(desktop, "C:\\");
-
     char path[MAX_PATH];
-    snprintf(path, MAX_PATH, "%s\\payload_dump.txt", desktop);
+    GetTempPathA(MAX_PATH, path);
+    strcat(path, "payload_dump.txt");
 
     char *report = (char *)malloc(2048);
     if (!report)
@@ -62,8 +58,6 @@ int main() {
         fputs("[CRT fopen/fputs OK]\r\n", fp);
         fclose(fp);
     }
-
-    MessageBoxA(NULL, report, "Payload", MB_OK | MB_ICONINFORMATION);
 
     free(report);
     return 0;

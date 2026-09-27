@@ -137,6 +137,49 @@ static void handle_register_unwind(Loader *loader, PVOID AllocatedAddress, PVOID
 	);
 }
 
+typedef struct _CFG_TARGET_INFO {
+	ULONG_PTR Offset;
+	ULONG_PTR Flags;
+} CFG_TARGET_INFO;
+
+#define CFG_CALL_TARGET_VALID 0x00000001
+
+__attribute__((section(".text$B")))
+static void handle_cfg_targets(PVOID AllocatedAddress, PIMAGE_SECTION_HEADER sec, WORD numSections) {
+	HMODULE kbase = (HMODULE)GetModule(KERNELBASE_HASH);
+	if (!kbase)
+		return;
+
+	BOOL (WINAPI *SetTargets)(HANDLE, PVOID, SIZE_T, ULONG, CFG_TARGET_INFO *) =
+		(BOOL (WINAPI *)(HANDLE, PVOID, SIZE_T, ULONG, CFG_TARGET_INFO *))GetProc(kbase, SETPROCESSVALIDCALLTARGETS_HASH);
+	if (!SetTargets)
+		return;
+
+	for (DWORD i = 0; i < numSections; i++) {
+		if (!(sec[i].Characteristics & IMAGE_SCN_MEM_EXECUTE))
+			continue;
+
+		SIZE_T vsize = sec[i].Misc.VirtualSize;
+		if (!vsize)
+			continue;
+
+		PVOID base = (PBYTE)AllocatedAddress + sec[i].VirtualAddress;
+
+		for (SIZE_T off = 0; off < vsize; off += 64 * 16) {
+			CFG_TARGET_INFO info[64];
+			ULONG n = 0;
+
+			for (SIZE_T o = off; o < vsize && n < 64; o += 16) {
+				info[n].Offset = o;
+				info[n].Flags  = CFG_CALL_TARGET_VALID;
+				n++;
+			}
+
+			SetTargets(CurrentProcess(), base, vsize, n, info);
+		}
+	}
+}
+
 __attribute__((section(".text$B")))
 BOOL loaderEntry(PVOID location, ULONG_PTR asmSavedRsp) {
 	PVOID DllAddress       = NULL;
@@ -226,6 +269,7 @@ BOOL loaderEntry(PVOID location, ULONG_PTR asmSavedRsp) {
 	handle_reloc_sections(pBase, DllAddress);
 	handle_iat_section(&loader, pBase, DllAddress);
 	handle_mem_perms(&loader, pBase, sec, numSections);
+	handle_cfg_targets(pBase, sec, numSections);
 	handle_tls_callbacks(pBase, DllAddress);
 	handle_register_unwind(&loader, pBase, DllAddress);
 

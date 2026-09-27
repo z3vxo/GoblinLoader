@@ -15,6 +15,8 @@
 #define NTCREATESECTION_HASH         0xd02e20d0
 #define NTMAPVIEWOFSECTION_HASH      0x231f196a
 #define CREATEFILEA_HASH              0xeb96c5fa
+#define KERNELBASE_HASH               0xa721952b
+#define SETPROCESSVALIDCALLTARGETS_HASH 0xbb6970d6
 
 #define DOS_HEADER(base)       ((PIMAGE_DOS_HEADER)(base))
 #define NT_HEADERS(base)       ((PIMAGE_NT_HEADERS)((PBYTE)(base) + DOS_HEADER(base)->e_lfanew))

@@ -11,6 +11,7 @@ typedef struct _LdrMemContext {
 
 typedef struct _LdrTask {
 	DWORD code;
+	DWORD Id;
 	DWORD DataSize;
 	DWORD FileType;
 	PBYTE Data;

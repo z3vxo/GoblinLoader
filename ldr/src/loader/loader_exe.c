@@ -4,17 +4,22 @@
 
 
 static VOID CALLBACK MemRunCallback(PVOID param, BOOLEAN timedOut) {
+	DBGA("[*] Callback Fired\n");
     LdrMemContext *ctx = (LdrMemContext *)param;
     PVOID Base = ctx->BaseAddress;
 
     PIMAGE_DATA_DIRECTORY importDir = &OPT_HEADER(Base)->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
     if (importDir->VirtualAddress) {
+		DBGA("[*] Freeing library\n");
+
         PIMAGE_IMPORT_DESCRIPTOR pImport = RVA2VA(PIMAGE_IMPORT_DESCRIPTOR, Base, importDir->VirtualAddress);
         for (; pImport->Name; pImport++) {
             PCHAR name = RVA2VA(PCHAR, Base, pImport->Name);
             HMODULE hMod = ldr->win32->LoadLibraryA(name);  
             ldr->win32->FreeLibrary(hMod);                 
-            ldr->win32->FreeLibrary(hMod);                   
+            ldr->win32->FreeLibrary(hMod);  
+			DBGA("[*] Freed Library\n");
+
         }
     }
 
@@ -22,6 +27,44 @@ static VOID CALLBACK MemRunCallback(PVOID param, BOOLEAN timedOut) {
     ldr->win32->NtFreeVirtualMemory(CurrentProcess(), &ctx->BaseAddress, &size, MEM_RELEASE);
     ldr->win32->LocalFree(ctx);
     DBGA("[*] Cleaned up memory!\n");
+}
+
+static void LdrHandleTls(PVOID Base, PBYTE Raw) {
+    PIMAGE_DATA_DIRECTORY tlsDir = &OPT_HEADER(Raw)->DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS];
+    if (!tlsDir->VirtualAddress)
+        return;
+
+    PIMAGE_TLS_DIRECTORY tls = RVA2VA(PIMAGE_TLS_DIRECTORY, Base, tlsDir->VirtualAddress);
+
+    if (tls->AddressOfIndex) {
+        typedef DWORD (WINAPI *fnTlsAlloc)(void);
+        typedef BOOL  (WINAPI *fnTlsSetValue)(DWORD, LPVOID);
+        fnTlsAlloc    pTlsAlloc    = (fnTlsAlloc)ldr->win32->GetProcAddress(ldr->modules->kernel32, "TlsAlloc");
+        fnTlsSetValue pTlsSetValue = (fnTlsSetValue)ldr->win32->GetProcAddress(ldr->modules->kernel32, "TlsSetValue");
+
+        if (pTlsAlloc && pTlsSetValue) {
+            DWORD index = pTlsAlloc();
+            *(PDWORD)((ULONG_PTR)tls->AddressOfIndex) = index;
+
+            SIZE_T templateSize = (SIZE_T)(tls->EndAddressOfRawData - tls->StartAddressOfRawData);
+            SIZE_T totalSize    = templateSize + tls->SizeOfZeroFill;
+            if (totalSize > 0) {
+                PVOID block = NULL;
+                SIZE_T sz = totalSize;
+                if (NT_SUCCESS(ldr->win32->NtAllocateVirtualMemory(CurrentProcess(), &block, 0, &sz, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE))) {
+                    if (templateSize > 0)
+                        LdrMemcpy(block, (PVOID)tls->StartAddressOfRawData, templateSize);
+                    pTlsSetValue(index, block);
+                }
+            }
+        }
+    }
+
+    PIMAGE_TLS_CALLBACK *callbacks = (PIMAGE_TLS_CALLBACK *)tls->AddressOfCallBacks;
+    if (callbacks) {
+        for (; *callbacks; ++callbacks)
+            (*callbacks)(Base, DLL_PROCESS_ATTACH, NULL);
+    }
 }
 
 BOOL LdrMapExe(LdrTask info) {
@@ -50,23 +93,14 @@ BOOL LdrMapExe(LdrTask info) {
 	LdrProcessIAT(BaseAddress, info.Data);
 	LdrPatchExitProcess();
 	LdrSetSectionPerms(BaseAddress, sec, numSections);
+	LdrHandleTls(BaseAddress, info.Data);
 
 	ULONG_PTR entry = (ULONG_PTR)BaseAddress + pOpt->AddressOfEntryPoint;
 	
 	DBGA("[*] Starting Thread\n");
-	LdrMemContext* Addr = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, sizeof(LdrMemContext));
-	Addr->BaseAddress = BaseAddress;
-
 	HANDLE hThread = ldr->win32->CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)entry, NULL,0, NULL);
-	HANDLE hWaitObject = NULL;
-	ldr->win32->RegisterWaitForSingleObject(
-	    &hWaitObject,
-	    hThread,
-	    MemRunCallback,
-	    Addr,
-	    INFINITE,            
-	    WT_EXECUTEONLYONCE
-	);
+	if (hThread)
+		ldr->win32->CloseHandle(hThread);
 
 	return TRUE;
 }

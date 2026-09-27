@@ -31,6 +31,7 @@ typedef struct _LdrInstance {
 } LdrInstance;
 
 extern LdrInstance *ldr;
+extern PVOID g_ImageBase;
 
 
 HMODULE GetModule(DWORD Hash);
@@ -39,6 +40,7 @@ DWORD HashStringA(const char *str);
 DWORD HashStringW(const wchar_t *str);
 
 void LdrMain();
+void LdrMarkCfgValidImage(PVOID Base);
 BOOL LdrAllocateCoreStructsAndLoadApis();
 BOOL ParseConfig();
 BOOL LdrRegisterAgent();

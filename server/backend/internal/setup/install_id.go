@@ -2,4 +2,4 @@
 
 package setup
 
-var installID = "436b059c-8cc1-4990-b0f1-5baa9ff43979"
+var installID = "07a2514c-71fb-4dfe-923b-d8a85fa45c44"

@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     CloseHandle(hFile);
     printf("[*] Read %lu bytes\n", bytesRead);
 
-    if (argc >= 3) {
+    if (argc >= ) {
         DWORD pid = (DWORD)strtoul(argv[2], NULL, 10);
         printf("[*] Injecting into PID %lu\n", pid);
 

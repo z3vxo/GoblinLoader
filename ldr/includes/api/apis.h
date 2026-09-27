@@ -56,6 +56,8 @@
 #define HASHED_NtResumeThread              0x2c7b3d30
 #define HASHED_NtGetContextThread          0x9e0e1a44
 #define HASHED_NtSetContextThread          0x308be0d0
+#define HASHED_kernelbase                  0xa721952b
+#define HASHED_SetProcessValidCallTargets  0xbb6970d6
 
 typedef HLOCAL(WINAPI *pLocalAlloc)(UINT uFlags, SIZE_T uBytes);
 typedef HLOCAL(WINAPI* pLocalReAlloc)(HLOCAL hMem, SIZE_T uBytes, UINT uFlags);

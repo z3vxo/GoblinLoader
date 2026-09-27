@@ -5,6 +5,7 @@ import { useSocket } from '../../context/SocketContext'
 import './UsersTab.css'
 
 const WS_LIST_FILES = 1
+const WS_RUN_FILE = 2
 
 function SearchIcon() {
   return (
@@ -72,7 +73,8 @@ function Terminal({ agent, onClose }) {
     setLines(ls => [...ls, { kind: 'cmd', text }])
     setInput('')
 
-    const cmd = text.trim().toLowerCase()
+    const parts = text.trim().split(/\s+/)
+    const cmd = parts[0].toLowerCase()
 
     if (cmd === 'info') {
       if (!currentCampaign) {
@@ -108,33 +110,57 @@ function Terminal({ agent, onClose }) {
       return
     }
 
-    if (cmd !== 'files') {
-      setLines(ls => [...ls, { kind: 'out', text: '[not implemented]' }])
-      return
-    }
     if (!currentCampaign) {
       setLines(ls => [...ls, { kind: 'out', text: '[no campaign selected]' }])
       return
     }
 
-    const res = await send({
-      code: WS_LIST_FILES,
-      agent_id: agent.uuid,
-      campaign_id: currentCampaign.uuid,
-    })
+    if (cmd === 'files') {
+      const res = await send({
+        code: WS_LIST_FILES,
+        agent_id: agent.uuid,
+        campaign_id: currentCampaign.uuid,
+      })
 
-    if (!res || !res.ok) {
-      setLines(ls => [...ls, { kind: 'out', text: `[error] ${res?.msg || 'request failed'}` }])
+      if (!res || !res.ok) {
+        setLines(ls => [...ls, { kind: 'out', text: `[error] ${res?.msg || 'request failed'}` }])
+        return
+      }
+
+      const files = res.data?.files ?? []
+      setLines(ls => {
+        const out = [{ kind: 'out', text: `files (${res.data?.total ?? files.length})` }]
+        if (files.length === 0) out.push({ kind: 'out', text: '  no files' })
+        for (const f of files) out.push({ kind: 'out', text: `  ${f.uuid}  ${f.name}` })
+        return [...ls, ...out]
+      })
       return
     }
 
-    const files = res.data?.files ?? []
-    setLines(ls => {
-      const out = [{ kind: 'out', text: `files (${res.data?.total ?? files.length})` }]
-      if (files.length === 0) out.push({ kind: 'out', text: '  no files' })
-      for (const f of files) out.push({ kind: 'out', text: `  ${f.uuid}  ${f.name}` })
-      return [...ls, ...out]
-    })
+    if (cmd === 'run') {
+      const fileUUID = parts[1]
+      if (!fileUUID) {
+        setLines(ls => [...ls, { kind: 'out', text: '[usage] run <file_uuid>' }])
+        return
+      }
+
+      const res = await send({
+        code: WS_RUN_FILE,
+        agent_id: agent.uuid,
+        campaign_id: currentCampaign.uuid,
+        payload: { file_uuid: fileUUID },
+      })
+
+      if (!res || !res.ok) {
+        setLines(ls => [...ls, { kind: 'out', text: `[error] ${res?.msg || 'request failed'}` }])
+        return
+      }
+
+      setLines(ls => [...ls, { kind: 'out', text: `[+] task queued: ${fileUUID}` }])
+      return
+    }
+
+    setLines(ls => [...ls, { kind: 'out', text: '[not implemented]' }])
   }
 
   const statusLabel =

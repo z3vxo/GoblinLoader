@@ -11,7 +11,14 @@ import (
 
 const (
 	CodeListFiles = 1
+	CodeRunFile   = 2
+
+	taskLoad = 0x1
 )
+
+type runFilePayload struct {
+	FileUUID string `json:"file_uuid"`
+}
 
 type WsReq struct {
 	Type       string          `json:"type"`
@@ -108,6 +115,17 @@ func (ws *WS) handle(c *Client, msg []byte) {
 			return
 		}
 		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: true, Data: files})
+	case CodeRunFile:
+		var payload runFilePayload
+		if err := json.Unmarshal(req.Payload, &payload); err != nil || payload.FileUUID == "" {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "missing file_uuid"})
+			return
+		}
+		if err := ws.DB.InsertTask(req.AgentID, taskLoad, payload.FileUUID); err != nil {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "failed to queue task"})
+			return
+		}
+		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: true})
 	default:
 		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "unknown code"})
 	}

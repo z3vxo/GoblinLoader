@@ -2,6 +2,7 @@
 #include "../../includes/loader/loader.h"
 
 LdrInstance *ldr = NULL;
+PVOID g_ImageBase = NULL;
 
 
 

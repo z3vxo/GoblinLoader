@@ -128,23 +128,3 @@ func (r *Reader) GetCodeAndAgentID() (uint32, string) {
 	return code, agentID
 }
 
-type Writer struct {
-	buf bytes.Buffer
-}
-
-func NewWriter() *Writer {
-	return &Writer{}
-}
-
-func (w *Writer) Write4(v uint32) {
-	binary.Write(&w.buf, binary.LittleEndian, v)
-}
-
-func (w *Writer) WriteString(s string) {
-	w.Write4(uint32(len(s)))
-	w.buf.WriteString(s)
-}
-
-func (w *Writer) Bytes() []byte {
-	return w.buf.Bytes()
-}
