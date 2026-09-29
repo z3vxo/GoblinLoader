@@ -1,0 +1,123 @@
+TODO: Stack spoofing research (thread base frames)
+
+Goal: after NtContinue into DllMain, the unwind walk should show a legit chain
+      DllMain -> BaseThreadInitThunk -> RtlUserThreadStart (-> kernel stop)
+      instead of dying at a stale/zero return address.
+
+Why needed: NtContinue sets RIP directly and never pushes a return address, so
+      DllMain's "caller" slot is garbage. RtlAddFunctionTable (done) only covers
+      the payload's own frames; the base frames above it must be faked.
+
+Key insight: RtlUserThreadStart / BaseThreadInitThunk are PRIVATE (not exported),
+      so GetProcAddress won't find them. No scanning needed if we ask the OS.
+
+Discovery trick (version-independent):
+  1. CreateThread(NULL, 0, stub, NULL, CREATE_SUSPENDED, &tid)
+     -> a suspended CreateThread thread has initial RIP = ntdll!RtlUserThreadStart
+  2. GetThreadContext -> ctx.Rip == RtlUserThreadStart
+  3. Stack already contains BaseThreadInitThunk (arg RtlUserThreadStart consumes)
+     plus lpStartAddress + param. Dump ULONG_PTRs above ctx.Rsp and keep the one
+     that falls inside kernel32's image range (base known from PEB).
+  4. Alternative: read the real base frames off the loader's OWN thread stack
+     (it was itself created via CreateThread) - higher addresses than RSP.
+
+Spoof layout before NtContinue:
+      [rsp+0x00] = ret into BaseThreadInitThunk   (as if it called DllMain)
+      [rsp+0x08] = ret into RtlUserThreadStart    (as if it called BaseThreadInitThunk)
+
+Caveats:
+  - Don't hardcode stack offsets; identify values by module range.
+  - Return-address slot normally points inside the function body; entry point is
+    usually fine as long as it lands in [BeginAddress, EndAddress) of the .pdata.
+  - Each frame must be self-consistent with its module's real .pdata, else the
+    walk looks torn (worse than a clean gap). Verify with kb after wiring.
+  - Suspended-thread trick doubles as a great debugging tool: dump context + stack
+    once to observe exactly what a legit thread base looks like.
+
+
+TODO: LOAD_AND_LISTEN exe execution + async cleanup
+=============================================
+
+1. apis.h — add hashes, typedefs, struct members:
+   - CreateThread              0x7f08f451  (kernel32)
+   - NtFreeVirtualMemory       0x471aa7e9  (ntdll)
+   - RegisterWaitForSingleObject 0xccf99aff (kernel32)
+   - UnregisterWait            0x9b9c8042  (kernel32)
+   - CloseHandle               0x3870ca07  (kernel32)
+
+2. setup.c — resolve all 5 new APIs from kernel32/ntdll
+
+3. loader_utils.c — add LdrPatchExitProcess():
+   - Walk loaded EXE's IAT after LdrProcessIAT resolves it
+   - Find "ExitProcess" by name (stack string, LdrStrncmp)
+   - Overwrite IAT slot with RtlExitUserThread
+   - Must run BEFORE LdrSetSectionPerms (IAT still RW)
+
+4. loader_exe.c — two paths based on CleanUpAfter:
+   LOAD_AND_EXIT:
+     - Direct call ((void(*)())entry)()
+     - EXE calls ExitProcess, kills process, don't care
+
+   LOAD_AND_LISTEN:
+     - LdrPatchExitProcess(BaseAddress) — ExitProcess → RtlExitUserThread
+     - CreateThread with entry point
+     - RegisterWaitForSingleObject(threadHandle, CleanupCallback, ctx, INFINITE, WT_EXECUTEONLYONCE)
+     - Main thread returns immediately to listen loop
+     - CleanupCallback fires when EXE thread exits:
+       → NtFreeVirtualMemory(BaseAddress)
+       → UnregisterWait(waitHandle)
+       → CloseHandle(threadHandle)
+       → LocalFree(context struct)
+
+5. loader.h — add declarations:
+   - void LdrPatchExitProcess(PVOID Base)
+   - Update LdrRunExe/LdrMapExe signatures to take CleanUpAfter
+
+6. loader.c — pass CleanUpAfter through to LdrRunExe → LdrMapExe
+
+7. core.h — bump UserId/FileId from CHAR[27] to CHAR[37] (UUIDs are 36 chars)
+
+
+TODO: Add x86 support
+
+Goal: make the reflective loader + indirect syscalls build/run as 32-bit.
+
+Toolchain / build:
+  - i686-w64-mingw32-gcc + nasm -f win32
+  - separate make target (make x86); linker script, entry point for 32-bit PE
+  - remove x64-only flags: -mno-red-zone (x86 has no red zone anyway)
+  - all fn typedefs use WINAPI/NTAPI which collapse to __stdcall on x86 - ok
+
+Entry + PEB:
+  - asmx86.asm: x86 entry stub (no shadow-space/16-byte align requirements;
+    simple call/pop for location)
+  - GetPeb(): x86 reads fs:[0x30] (already #ifdef'd in utils.c)
+  - IMAGE_REL_TYPE: DIR64 vs HIGHLOW (already #ifdef _WIN64 in loader.c)
+
+Syscall mechanism (biggest difference):
+  - no 'syscall' instruction on x86; uses sysenter (KiFastSystemCall) or int 0x2E
+    (KiIntSystemCall). Active stub pointer lives at fixed KUSER_SHARED_DATA
+    address 0x7FFE0300.
+  - find_gadget(): return *(DWORD*)0x7FFE0300 - NO ntdll scanning needed.
+  - find_ssn(): SSN at offset +1 (stub is 'B8 xx xx xx xx'), not +4.
+  - do_syscall: stdcall (args on stack, callee cleans up).
+      * 'call dword [edx]' NOT 'jmp' - kernel expects 2 return addrs above args.
+      * 'ret 48' to clean 12 params (12 x 4 bytes).
+  - symbol decoration: x86 COFF stdcall = _do_syscall@48; match asm global +
+    C prototype (__stdcall) name.
+
+Loader logic to verify for 32-bit:
+  - CONTEXT / PCONTEXT is x86 layout (CONTEXT vs WOW64_CONTEXT)
+  - module overloading (NtCreateSection SEC_IMAGE + NtMapViewOfSection) is
+    arch-agnostic but sizes/offsets (ULONG_PTR = 4 bytes) must be checked
+  - NtContinue / RtlCaptureContext / RtlAddFunctionTable all have 32-bit forms
+  - PE relocations: 32-bit delta patching (HIGHLOW) already gated by _WIN64
+
+
+TODO: Next steps
+===============
+
+- Add module overloading for DLLs and modules
+- Add process hollowing for no .reloc EXEs
+- Work on modules
+- Work on server
