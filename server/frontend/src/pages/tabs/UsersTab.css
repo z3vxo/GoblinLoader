@@ -416,6 +416,28 @@
   word-break: break-word;
 }
 
+.term-mod {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 1px 0;
+}
+
+.term-mod-name {
+  min-width: 76px;
+  color: var(--accent-strong);
+}
+
+.term-mod-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  word-break: break-word;
+}
+
+.term-mod-info { color: var(--text); }
+.term-mod-args { color: var(--text-subtle); font-size: 12px; }
+
 .terminal-form {
   display: flex;
   align-items: center;

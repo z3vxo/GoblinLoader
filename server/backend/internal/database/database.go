@@ -87,9 +87,11 @@ func SetupDB(path string) (*sql.DB, error) {
 			has_reloc     INTEGER NOT NULL DEFAULT 0,
 			has_args      INTEGER NOT NULL DEFAULT 0,
 			file_uuid     TEXT    REFERENCES files(uuid) ON DELETE CASCADE,
+			module        TEXT,
 			args          TEXT,
 			status        INTEGER NOT NULL DEFAULT 0,
-			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+			created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+			CHECK (file_uuid IS NULL OR module IS NULL)
 		)`,
 
 		`CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(agent_uuid, status)`,

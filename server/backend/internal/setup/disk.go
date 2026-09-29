@@ -42,6 +42,11 @@ func SetupFolder() (*os.File, string, error) {
 		return nil, "", err
 	}
 
+	modulesDir := filepath.Join(dirPath, "modules")
+	if err := os.MkdirAll(modulesDir, 0755); err != nil {
+		return nil, "", err
+	}
+
 	configFile, err := os.Create(filepath.Join(configDir, "config.json"))
 	if err != nil {
 		return nil, "", err

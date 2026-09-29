@@ -6,6 +6,8 @@ import './UsersTab.css'
 
 const WS_LIST_FILES = 1
 const WS_RUN_FILE = 2
+const WS_LIST_MODULES = 3
+const WS_EXECUTE_COMMAND = 4
 
 function SearchIcon() {
   return (
@@ -73,8 +75,10 @@ function Terminal({ agent, onClose }) {
     setLines(ls => [...ls, { kind: 'cmd', text }])
     setInput('')
 
-    const parts = text.trim().split(/\s+/)
+    const trimmed = text.trim()
+    const parts = trimmed.split(/\s+/)
     const cmd = parts[0].toLowerCase()
+    const arg = trimmed.slice(parts[0].length).trim()
 
     if (cmd === 'info') {
       if (!currentCampaign) {
@@ -107,6 +111,24 @@ function Terminal({ agent, onClose }) {
       } catch {
         setLines(ls => [...ls, { kind: 'out', text: '[error] request failed' }])
       }
+      return
+    }
+
+    if (cmd === 'modules') {
+      const res = await send({ code: WS_LIST_MODULES })
+
+      if (!res || !res.ok) {
+        setLines(ls => [...ls, { kind: 'out', text: `[error] ${res?.msg || 'request failed'}` }])
+        return
+      }
+
+      const mods = res.data?.modules ?? []
+      setLines(ls => {
+        const out = [{ kind: 'out', text: `modules (${res.data?.total ?? mods.length})` }]
+        if (mods.length === 0) out.push({ kind: 'out', text: '  no modules' })
+        for (const m of mods) out.push({ kind: 'mod', name: m.name, info: m.info, args: m.args })
+        return [...ls, ...out]
+      })
       return
     }
 
@@ -160,7 +182,19 @@ function Terminal({ agent, onClose }) {
       return
     }
 
-    setLines(ls => [...ls, { kind: 'out', text: '[not implemented]' }])
+    const res = await send({
+      code: WS_EXECUTE_COMMAND,
+      agent_id: agent.uuid,
+      campaign_id: currentCampaign.uuid,
+      payload: { cmd, arg },
+    })
+
+    if (!res || !res.ok) {
+      setLines(ls => [...ls, { kind: 'out', text: `[error] ${res?.msg || 'request failed'}` }])
+      return
+    }
+
+    setLines(ls => [...ls, { kind: 'out', text: `[+] command queued: ${arg ? `${cmd} ${arg}` : cmd}` }])
   }
 
   const statusLabel =
@@ -190,7 +224,15 @@ function Terminal({ agent, onClose }) {
                 ? <div key={i} className="term-cmd"><span className="term-prompt">›</span>{l.text}</div>
                 : l.kind === 'kv'
                   ? <div key={i} className="term-kv"><span className="term-key">{l.key}</span><span className="term-val">{l.value}</span></div>
-                  : <div key={i} className="term-out">{l.text}</div>
+                  : l.kind === 'mod'
+                    ? <div key={i} className="term-mod">
+                        <span className="term-mod-name">{l.name}</span>
+                        <span className="term-mod-desc">
+                          <span className="term-mod-info">{l.info}</span>
+                          {l.args && <span className="term-mod-args">{l.args}</span>}
+                        </span>
+                      </div>
+                    : <div key={i} className="term-out">{l.text}</div>
             )
         }
       </div>

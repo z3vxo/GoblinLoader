@@ -30,7 +30,8 @@ typedef DWORD(WINAPI *pGetFullPathNameA)(LPCSTR lpFileName, DWORD nBufferLenght,
 typedef DWORD(WINAPI *pGetFileAttributesA)(LPCSTR lpFileName);
 typedef BOOL(WINAPI *pCloseHandle)(HANDLE hObject);
 
-#define END_SIG 0xFF
+#define END_SIG 0xFFFFFFFF
+#define OUTPUT_LS 0x02
 
 
 __attribute__((section(".text$B")))
@@ -62,14 +63,11 @@ BOOL WINAPI ModuleEntry(pModule api, PVOID ctx, PBYTE args, DWORD ArgLen) {
 	if(!hFind || hFind == INVALID_HANDLE_VALUE)
 		return FALSE;
 
-/*	[file len] 4 bytes
-	[file str] N bytes
-	[entry type] 4 bytes -> 1 = dir, 2 = file, 3 = link
-	[size] 4 bytes
-*/
 	DWORD EntryType = 0;
 	CHAR dot1[3];
 	CHAR dot2[2];
+
+	api->ModuleWrite4(ctx, OUTPUT_LS);
 
 	// PIC, cant use string literals as cbf dealing with .rdata
 	dot1[0] = '.';
@@ -98,6 +96,7 @@ BOOL WINAPI ModuleEntry(pModule api, PVOID ctx, PBYTE args, DWORD ArgLen) {
 		ULONGLONG size = ((ULONGLONG)fData.nFileSizeHigh << 32) | fData.nFileSizeLow;
 		api->ModuleWrite8(ctx, size);
 	} while(fnFindNextFileA(hFind, &fData));
+
 	api->ModuleWrite4(ctx, END_SIG);
 
 	return TRUE;

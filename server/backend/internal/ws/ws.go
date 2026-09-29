@@ -7,11 +7,14 @@ import (
 
 	"github.com/gorilla/websocket"
 	"ldrserver/internal/database"
+	"ldrserver/internal/modules"
 )
 
 const (
-	CodeListFiles = 1
-	CodeRunFile   = 2
+	CodeListFiles      = 1
+	CodeRunFile        = 2
+	CodeListModules    = 3
+	CodeExecuteCommand = 4
 
 	taskLoad = 0x1
 )
@@ -27,6 +30,11 @@ type WsReq struct {
 	AgentID    string          `json:"agent_id"`
 	CampaignID string          `json:"campaign_id"`
 	Payload    json.RawMessage `json:"payload"`
+}
+
+type CmdReq struct {
+	Command string `json:"cmd"`
+	Arg1    string `json:"arg"`
 }
 
 type frame struct {
@@ -126,6 +134,38 @@ func (ws *WS) handle(c *Client, msg []byte) {
 			return
 		}
 		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: true})
+	case CodeListModules:
+		mods, err := modules.List()
+		if err != nil {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "failed listing modules"})
+			return
+		}
+		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: true, Data: mods})
+
+	case CodeExecuteCommand:
+		var cmd CmdReq
+		if err := json.Unmarshal(req.Payload, &cmd); err != nil {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "failed decoding json"})
+			return
+		}
+		if cmd.Command == "" {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "missing command"})
+			return
+		}
+		if _, err := modules.GetCode(cmd.Command); err != nil {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "unknown command: " + cmd.Command})
+			return
+		}
+		hasArgs := 0
+		if cmd.Arg1 != "" {
+			hasArgs = 1
+		}
+		if err := ws.DB.InsertModuleTask(req.AgentID, cmd.Command, hasArgs, cmd.Arg1); err != nil {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "failed to queue command"})
+			return
+		}
+		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: true})
+
 	default:
 		ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "unknown code"})
 	}

@@ -165,9 +165,9 @@ BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter) {
 	}
 
 	ParserWrite4(p, MSG_OUTPUT);
-	ParserWriteBytes(p, ldr->config->CampaignID, sizeof(ldr->config->CampaignID));
-	ParserWriteBytes(p, ldr->config->AgentId, sizeof(ldr->config->AgentId));
-	ParserWrite4(p, MSG_NEEDS_PARSE);
+	ParserWriteBytes(p, (PBYTE)ldr->config->AgentId, LdrStrlen(ldr->config->AgentId));
+	ParserWriteBytes(p, (PBYTE)ldr->config->CampaignID, LdrStrlen(ldr->config->CampaignID));
+	ParserWrite4(p, info.Id);
 
 	pModuleEntry entry = (pModuleEntry)txt;
 	DBGA("[*] Running Module\n");

@@ -7,7 +7,6 @@ import (
 	"io"
 )
 
-
 type AgentRegister struct {
 	AgentID     string
 	CampaignID  string
@@ -16,11 +15,9 @@ type AgentRegister struct {
 	Domain      string
 	ProcessName string
 	Country     string
-	Arch			  string
+	Arch        string
 	IsElev      int
-
 }
-
 
 const maxFieldLen = 1 << 20
 
@@ -81,7 +78,42 @@ func (r *Reader) ReadString() string {
 	return string(r.ReadBytes())
 }
 
+func (r *Reader) Read8() uint64 {
+	if r.err != nil {
+		return 0
+	}
+	var val uint64
+	r.err = binary.Read(r.r, binary.LittleEndian, &val)
+	return val
+}
 
+// ReadN reads exactly n raw bytes — for fields whose length was written
+// separately (e.g. ModuleWriteStr writes raw, not length-prefixed).
+func (r *Reader) ReadN(n int) []byte {
+	if r.err != nil {
+		return nil
+	}
+	if n < 0 || n > maxFieldLen {
+		r.err = fmt.Errorf("invalid read length: %d", n)
+		return nil
+	}
+	buf := make([]byte, n)
+	_, r.err = io.ReadFull(r.r, buf)
+	if r.err != nil {
+		return nil
+	}
+	return buf
+}
+
+// ReadRest returns everything left in the buffer.
+func (r *Reader) ReadRest() []byte {
+	if r.err != nil {
+		return nil
+	}
+	buf, err := io.ReadAll(r.r)
+	r.err = err
+	return buf
+}
 
 /*
 
@@ -104,19 +136,19 @@ func (r *Reader) ReadString() string {
 func (r *Reader) ParseRegister(id string) (AgentRegister, error) {
 	var agent AgentRegister
 	agent.AgentID = id
-	agent.CampaignID    = r.ReadString()
-	agent.Username      = r.ReadString()
-	agent.Hostname      = r.ReadString()
-	agent.Domain        = r.ReadString()
-	agent.ProcessName   = r.ReadString()
-	agent.Country       = r.ReadString()
+	agent.CampaignID = r.ReadString()
+	agent.Username = r.ReadString()
+	agent.Hostname = r.ReadString()
+	agent.Domain = r.ReadString()
+	agent.ProcessName = r.ReadString()
+	agent.Country = r.ReadString()
 	arch := r.Read4()
-	if(arch == 1) {
+	if arch == 1 {
 		agent.Arch = "x64"
 	} else {
 		agent.Arch = "x86"
 	}
-	agent.IsElev        = int(r.Read4())
+	agent.IsElev = int(r.Read4())
 
 	return agent, r.err
 
@@ -127,4 +159,3 @@ func (r *Reader) GetCodeAndAgentID() (uint32, string) {
 	agentID := r.ReadString()
 	return code, agentID
 }
-
