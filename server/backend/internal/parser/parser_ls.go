@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// lsEndSig mirrors END_SIG in src/modules/ls.c.
+
 const lsEndSig = 0xFFFFFFFF
 
 type LsEntry struct {
@@ -15,9 +15,6 @@ type LsEntry struct {
 	Type int // 1 = dir, 2 = file, 3 = link
 }
 
-// ParseLS decodes the payload written by the ls module:
-//
-//	[file len:4][file str:N][entry type:4][size:8] ... [END_SIG:4]
 func ParseLS(data []byte) ([]LsEntry, error) {
 	r := NewReader(bytes.NewReader(data))
 	entries := []LsEntry{}
@@ -72,7 +69,6 @@ func humanSize(n uint64) string {
 	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGT"[exp])
 }
 
-// FormatLS renders entries as aligned "NAME | SIZE | TYPE" rows.
 func FormatLS(entries []LsEntry) string {
 	nameW, sizeW := len("NAME"), len("SIZE")
 	for _, e := range entries {

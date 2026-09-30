@@ -113,6 +113,16 @@ func (s *Server) HandleAgentCheckin(w http.ResponseWriter, r *http.Request) {
 
 		var output string
 		switch outputType {
+		case OUTPUT_NO_DATA:
+			// Task launched with no payload (EXE/DLL/shellcode). It's already
+			// marked done above; just tell the operator.
+			s.WS.Broadcast(ws.EventAgentTaskDone, map[string]interface{}{
+				"agent_id":    agentID,
+				"campaign_id": campaignID,
+				"task_id":     taskID,
+			})
+			w.WriteHeader(http.StatusOK)
+			return
 		case OUTPUT_LS:
 			entries, err := parser.ParseLS(payload)
 			if err != nil {
@@ -126,6 +136,13 @@ func (s *Server) HandleAgentCheckin(w http.ResponseWriter, r *http.Request) {
 				output = "[cat parse error]"
 			} else {
 				output = string(data)
+			}
+		case OUTPUT_WHOAMI:
+			who, err := parser.ParseWhoami(payload)
+			if err != nil {
+				output = "[whoami parse error]"
+			} else {
+				output = parser.FormatWhoami(who)
 			}
 		default:
 			output = string(payload)

@@ -19,6 +19,13 @@ const (
 	taskLoad = 0x1
 )
 
+// builtinCommands are handled inside the agent itself (no module payload).
+// Keep in sync with the HASHED_BUILTIN_* dispatcher in the agent's loader_cmd.c.
+var builtinCommands = map[string]bool{
+	"cd":  true,
+	"pwd": true,
+}
+
 type runFilePayload struct {
 	FileUUID string `json:"file_uuid"`
 }
@@ -152,13 +159,23 @@ func (ws *WS) handle(c *Client, msg []byte) {
 			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "missing command"})
 			return
 		}
-		if _, err := modules.GetCode(cmd.Command); err != nil {
-			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "unknown command: " + cmd.Command})
-			return
-		}
 		hasArgs := 0
 		if cmd.Arg1 != "" {
 			hasArgs = 1
+		}
+
+		if builtinCommands[cmd.Command] {
+			if err := ws.DB.InsertCmdTask(req.AgentID, cmd.Command, hasArgs, cmd.Arg1); err != nil {
+				ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "failed to queue command"})
+				return
+			}
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: true})
+			return
+		}
+
+		if _, err := modules.GetCode(cmd.Command); err != nil {
+			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "unknown command: " + cmd.Command})
+			return
 		}
 		if err := ws.DB.InsertModuleTask(req.AgentID, cmd.Command, hasArgs, cmd.Arg1); err != nil {
 			ws.reply(c, frame{Type: "res", ID: req.ID, Code: req.Code, OK: false, Msg: "failed to queue command"})

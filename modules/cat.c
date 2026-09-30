@@ -2,21 +2,6 @@
 #include "common.h"
 
 
-typedef struct _Module {
-	DWORD size;
-	DWORD Version;
-
-	void (WINAPI *ModuleWrite4)(PVOID ctx, DWORD val);
-	void (WINAPI *ModuleWrite8)(PVOID ctx, ULONGLONG val);
-	void (WINAPI *ModuleWriteStr)(PVOID ctx, PCHAR str, DWORD len);
-
-	HMODULE (WINAPI *ModuleGetModule)(DWORD hash);
-	FARPROC (WINAPI *ModuleGetProc)(HMODULE mod, DWORD hash);
-	HMODULE (WINAPI *ModuleLoadLibraryA)(PCHAR name);
-	BOOL    (WINAPI *ModuleFreeLibrary)(HMODULE mod);
-} Module, *pModule;
-
-#define HASHED_kernel32            0x7040ee75
 #define HASHED_CreateFileA         0xeb96c5fa
 #define HASHED_CloseHandle         0x3870ca07
 #define HASHED_ReadFile			   0x71019921

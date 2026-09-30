@@ -59,6 +59,8 @@ int main() {
         fclose(fp);
     }
 
+    MessageBoxA(NULL, report, "test.exe", MB_OK | MB_ICONINFORMATION);
+
     free(report);
     return 0;
 }

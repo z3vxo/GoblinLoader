@@ -12,6 +12,7 @@ const (
 	FileTypeDll = 0xab
 
 	taskModule = 0x3
+	taskCmd    = 0x5
 )
 
 func fileTypeForKind(kind string) (int, bool) {
@@ -52,6 +53,18 @@ func (db *DB) InsertModuleTask(agentUUID, module string, hasArgs int, args strin
 		`INSERT INTO tasks (agent_uuid, code, file_type, has_reloc, has_args, module, args)
 		 VALUES (?, ?, ?, 0, ?, ?, ?)`,
 		agentUUID, taskModule, FileTypeDll, hasArgs, module, args,
+	)
+	return err
+}
+
+// InsertCmdTask queues a built-in agent command. It reuses the module/args
+// columns so no schema change is needed; code=taskCmd tells the agent to
+// dispatch it internally rather than load a module payload.
+func (db *DB) InsertCmdTask(agentUUID, name string, hasArgs int, args string) error {
+	_, err := db.conn.Exec(
+		`INSERT INTO tasks (agent_uuid, code, file_type, has_reloc, has_args, module, args)
+		 VALUES (?, ?, 0, 0, ?, ?, ?)`,
+		agentUUID, taskCmd, hasArgs, name, args,
 	)
 	return err
 }

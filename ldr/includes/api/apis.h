@@ -26,6 +26,8 @@
 #define HASHED_GetModuleFileNameA    0x13b8a14d
 #define HASHED_GetUserGeoID          0x9b47362c
 #define HASHED_GetGeoInfoA           0x35fe32ad
+#define HASHED_SetCurrentDirectoryA  0xbec3a06a
+#define HASHED_GetCurrentDirectoryA  0x2ced73de
 
 
 
@@ -70,6 +72,9 @@ typedef BOOL(WINAPI* pGetComputerNameExA)(COMPUTER_NAME_FORMAT NameType, LPSTR l
 typedef DWORD(WINAPI* pGetModuleFileNameA)(HMODULE hModule, LPSTR lpFileName, DWORD nSize);
 typedef GEOID(WINAPI* pGetUserGeoId)(GEOCLASS GeoClass);
 typedef int  (WINAPI* pGetGeoInfoA)(GEOID Location, GEOTYPE GeoType, LPSTR lpGeoData, int cchData, LANGID LanId);
+
+typedef BOOL (WINAPI* pSetCurrentDirectoryA)(LPCSTR lpPathName);
+typedef DWORD(WINAPI* pGetCurrentDirectoryA)(DWORD nBufferLength, LPSTR lpBuffer);
 
 
 
@@ -257,6 +262,14 @@ typedef struct _Win32 {
     pWinHttpCloseHandle        WinHttpCloseHandle;
 } Win32, *PWin32;
 
+#define MAX_LOADED_MODULES 32
+
+typedef struct _LoadedModule {
+    DWORD Hash;      
+    PVOID Entry;     
+    DWORD Size;      
+} LoadedModule, *pLoadedModule;
+
 typedef struct _Modules {
     HMODULE ntdll;
     HMODULE kernel32;
@@ -264,4 +277,8 @@ typedef struct _Modules {
     PVOID TextSection;
     SIZE_T TextSize;
     DWORD oldPerms;
+
+    
+    PBYTE        ArenaCursor;
+    LoadedModule Loaded[MAX_LOADED_MODULES];
 } Modules;

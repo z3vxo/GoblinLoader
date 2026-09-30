@@ -56,9 +56,12 @@ export function SocketProvider({ children }) {
         setState('open')
       }
 
-      socket.onclose = () => {
+      socket.onclose = ev => {
         socketRef.current = null
         setState('closed')
+        if (ev && ev.code !== 1000) {
+          console.warn(`[ws] closed (code ${ev.code}${ev.reason ? `: ${ev.reason}` : ''}), retrying in ${backoffRef.current}ms`)
+        }
         if (!disposed) {
           reconnectTimer = setTimeout(connect, backoffRef.current)
           backoffRef.current = Math.min(backoffRef.current * 2, 15000)

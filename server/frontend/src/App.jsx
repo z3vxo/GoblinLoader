@@ -16,27 +16,37 @@ function Stub({ name }) {
   )
 }
 
+// Mounted only inside the authenticated area. SocketProvider reads the JWT at
+// connect time, so it must mount *after* login — at the app root it runs its
+// one-shot connect() before a token exists and never retries.
+function AuthenticatedProviders({ children }) {
+  return (
+    <SocketProvider>
+      <CampaignProvider>
+        <TerminalProvider>{children}</TerminalProvider>
+      </CampaignProvider>
+    </SocketProvider>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <SocketProvider>
-        <CampaignProvider>
-          <TerminalProvider>
-            <Routes>
-              <Route path="/" element={<Login />} />
-              <Route path="/dashboard" element={<Dashboard />}>
-                <Route index element={<Navigate to="users" replace />} />
-                <Route path="users"    element={<UsersTab />} />
-                <Route path="campaign" element={<CampaignTab />} />
-                <Route path="builder"  element={<Stub name="Builder" />} />
-                <Route path="files"    element={<FilesTab />} />
-                <Route path="settings" element={<Stub name="Settings" />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </TerminalProvider>
-        </CampaignProvider>
-      </SocketProvider>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route
+          path="/dashboard"
+          element={<AuthenticatedProviders><Dashboard /></AuthenticatedProviders>}
+        >
+          <Route index element={<Navigate to="users" replace />} />
+          <Route path="users"    element={<UsersTab />} />
+          <Route path="campaign" element={<CampaignTab />} />
+          <Route path="builder"  element={<Stub name="Builder" />} />
+          <Route path="files"    element={<FilesTab />} />
+          <Route path="settings" element={<Stub name="Settings" />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   )
 }

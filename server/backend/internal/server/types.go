@@ -5,10 +5,12 @@ const (
 	CODE_REGISTER = 0xab
 	MSG_OUTPUT    = 0xad
 
-	OUTPUT_RAW  = 0x0
-	OUTPUT_TEXT = 0x1
-	OUTPUT_LS   = 0x2
-	OUTPUT_CAT  = 0x3
+	OUTPUT_RAW     = 0x0
+	OUTPUT_TEXT    = 0x1
+	OUTPUT_LS      = 0x2
+	OUTPUT_CAT     = 0x3
+	OUTPUT_NO_DATA = 0x4
+	OUTPUT_WHOAMI  = 0x5
 
 	TASK_NO_TASK = 0xff
 )

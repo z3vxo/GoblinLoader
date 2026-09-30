@@ -327,6 +327,12 @@ __attribute__((section(".text$B"))) static inline void *picMemcpy(void *dst, con
     return dst;
 }
 
+__attribute__((section(".text$B"))) static inline void *picMemset(void *dst, int val, SIZE_T n) {
+    volatile unsigned char *d = (volatile unsigned char *)dst;
+    while (n--) *d++ = (unsigned char)val;
+    return dst;
+}
+
 
 
 

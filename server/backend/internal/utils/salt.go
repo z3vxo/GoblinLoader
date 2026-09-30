@@ -2,4 +2,4 @@
 
 package utils
 
-var FingerprintSalt = "b03a3606b87ad663713cfa123ba852e4"
+var FingerprintSalt = "0a8e1cfce6ab643ab70754f89fef8a15"

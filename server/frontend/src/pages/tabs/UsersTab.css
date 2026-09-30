@@ -286,8 +286,8 @@
 /* ── Terminal ───────────────────────────────────── */
 
 .terminal {
-  flex: 1;
-  min-height: 0;
+  flex: 0 1 38%;
+  min-height: 220px;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -295,6 +295,10 @@
   border-radius: 12px;
   overflow: hidden;
 }
+
+/* Expanded: shrink the agent list to a strip and let the terminal take the room. */
+.users-layout.term-expanded .agents-panel { flex: 0 0 26%; }
+.users-layout.term-expanded .terminal { flex: 1 1 auto; }
 
 .terminal-header {
   display: flex;
@@ -348,7 +352,8 @@
   background: var(--accent);
 }
 
-.terminal-close {
+.terminal-close,
+.terminal-icon-btn {
   width: 24px;
   height: 24px;
   display: flex;
@@ -362,9 +367,11 @@
   transition: color 150ms ease, background 150ms ease;
 }
 
-.terminal-close svg { width: 13px; height: 13px; }
+.terminal-close svg,
+.terminal-icon-btn svg { width: 13px; height: 13px; }
 
-.terminal-close:hover {
+.terminal-close:hover,
+.terminal-icon-btn:hover {
   color: var(--text);
   background: var(--surface-2);
 }

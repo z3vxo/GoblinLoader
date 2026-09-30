@@ -45,7 +45,25 @@ function CloseIcon() {
   )
 }
 
-function Terminal({ agent, onClose }) {
+function MaximizeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M6 2H2v4M10 14h4v-4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 2l4 4M14 14l-4-4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function RestoreIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M2 6h4V2M14 10h-4v4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 6L2 2M10 10l4 4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function Terminal({ agent, expanded, onToggleExpand, onClose }) {
   const { currentCampaign } = useCampaign()
   const { state: connState, send, on } = useSocket()
   const [lines, setLines] = useState([])
@@ -65,6 +83,15 @@ function Terminal({ agent, onClose }) {
       const id = data.agent_id || data.uuid
       if (id !== agent.uuid) return
       setLines(ls => [...ls, { kind: 'out', text: data.output ?? data.text ?? '' }])
+    })
+  }, [on, agent.uuid])
+
+  useEffect(() => {
+    return on('agent.task_done', data => {
+      if (!data) return
+      const id = data.agent_id || data.uuid
+      if (id !== agent.uuid) return
+      setLines(ls => [...ls, { kind: 'out', text: `[+] task ${data.task_id} executed successfully` }])
     })
   }, [on, agent.uuid])
 
@@ -182,11 +209,14 @@ function Terminal({ agent, onClose }) {
       return
     }
 
+    // `ls` with no path lists the current directory.
+    const effectiveArg = (cmd === 'ls' && !arg) ? '.' : arg
+
     const res = await send({
       code: WS_EXECUTE_COMMAND,
       agent_id: agent.uuid,
       campaign_id: currentCampaign.uuid,
-      payload: { cmd, arg },
+      payload: { cmd, arg: effectiveArg },
     })
 
     if (!res || !res.ok) {
@@ -194,7 +224,7 @@ function Terminal({ agent, onClose }) {
       return
     }
 
-    setLines(ls => [...ls, { kind: 'out', text: `[+] command queued: ${arg ? `${cmd} ${arg}` : cmd}` }])
+    setLines(ls => [...ls, { kind: 'out', text: `[+] command queued: ${effectiveArg ? `${cmd} ${effectiveArg}` : cmd}` }])
   }
 
   const statusLabel =
@@ -211,6 +241,13 @@ function Terminal({ agent, onClose }) {
           <span className="terminal-status-dot" />
           {statusLabel}
         </span>
+        <button
+          className="terminal-icon-btn"
+          onClick={onToggleExpand}
+          title={expanded ? 'Restore panel' : 'Maximize panel'}
+        >
+          {expanded ? <RestoreIcon /> : <MaximizeIcon />}
+        </button>
         <button className="terminal-close" onClick={onClose} title="Close terminal">
           <CloseIcon />
         </button>
@@ -259,6 +296,7 @@ export default function UsersTab() {
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
+  const [expanded, setExpanded] = useState(false)
 
   const jwt = (() => { try { return localStorage.getItem('jwt') } catch { return null } })()
 
@@ -308,7 +346,7 @@ export default function UsersTab() {
   }
 
   return (
-    <div className="users-layout">
+    <div className={`users-layout${expanded ? ' term-expanded' : ''}`}>
       <div className="agents-panel">
         <div className="agents-toolbar">
           <div className="agents-heading">
@@ -392,7 +430,9 @@ export default function UsersTab() {
       {activeAgent && (
         <Terminal
           agent={activeAgent}
-          onClose={() => setActiveAgent(null)}
+          expanded={expanded}
+          onToggleExpand={() => setExpanded(e => !e)}
+          onClose={() => { setActiveAgent(null); setExpanded(false) }}
         />
       )}
     </div>

