@@ -20,8 +20,6 @@ static void handle_copy_sections(PVOID AllocatedAddress, PVOID DllAddress, PIMAG
 	        sec[i].SizeOfRawData
 	    );
 
-	    // Uninitialized data (VirtualSize > SizeOfRawData) is NOT in the file, so
-	    // the sacrificial image's bytes would otherwise leak into our .bss. Zero it.
 	    if (sec[i].Misc.VirtualSize > sec[i].SizeOfRawData) {
 	        picMemset(
 	            (PBYTE)AllocatedAddress + sec[i].VirtualAddress + sec[i].SizeOfRawData,
